@@ -11,6 +11,9 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTCreationException;
 
+import java.util.List;
+import java.util.stream.Collectors;
+import org.springframework.security.core.GrantedAuthority;
 @Service
 public class JwtTokenService {
 
@@ -23,13 +26,17 @@ public class JwtTokenService {
         try {
             // 3. Define o "algoritmo" de encriptação (HMAC256) com a nossa chave
             Algorithm algorithm = Algorithm.HMAC256(secretKey);
+            
+            List<String> roles = userDetails.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .collect(Collectors.toList());
 
             String token = JWT.create()
                 .withIssuer("HelpTI-API") 
-                .withSubject(userDetails.getUsername()) // O e-mail do utilizador
-                .withExpiresAt(getExpirationDate()) // Define a hora de expiração
-                // Podes adicionar "roles" aqui depois, se quiseres
-                .sign(algorithm); // Assina o token
+                .withSubject(userDetails.getUsername()) 
+                .withExpiresAt(getExpirationDate()) 
+                .withClaim("roles", roles)
+                .sign(algorithm);
             return token;
 
         } catch (JWTCreationException exception) {

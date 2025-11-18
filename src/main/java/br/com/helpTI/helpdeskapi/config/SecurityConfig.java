@@ -17,6 +17,11 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration; // <-- IMPORTE
+import org.springframework.web.cors.CorsConfigurationSource; // <-- IMPORTE
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource; // <-- IMPORTE
+import java.util.List; // <-- IMPORTE
+import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration // 1. Diz ao Spring que esta é uma classe de configuração
 @EnableWebSecurity // 2. Liga a "tomada" da segurança web do Spring
@@ -38,23 +43,50 @@ public class SecurityConfig {
         return authConfig.getAuthenticationManager();
     }
  // 3. DIZ AO SPRING COMO ENCONTRAR OS UTILIZADORES
-    @Autowired
-    public void configureGlobal(AuthenticationManagerBuilder auth) throws Exception {
-        auth.userDetailsService(userDetailsService)
-            .passwordEncoder(passwordEncoder()); // Ensina-o a usar o BCrypt
-    }
+//    @Autowired
+//    public void configureGlobal(AuthenticationManagerBuilder auth) throws Exception {
+//        auth.userDetailsService(userDetailsService)
+//            .passwordEncoder(passwordEncoder()); // Ensina-o a usar o BCrypt
+//    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            // --> 1. LIGA O CORS
+            .cors(withDefaults()) 
+            
             .csrf(csrf -> csrf.disable()) 
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authorize -> authorize
-            	.requestMatchers("/api/login").permitAll()
-            	.requestMatchers("/api/empresas").permitAll()
-            	.anyRequest().authenticated() 
-                    )
+                .requestMatchers("/api/login").permitAll()
+                .requestMatchers("/api/empresas").permitAll()
+                .requestMatchers("/api/dashboard/admin").hasRole("ADMIN")
+                .requestMatchers("/api/dashboard/tecnico").hasRole("TECNICO")
+                .anyRequest().authenticated() 
+            )
             .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class);
+            
         return http.build();
+    }
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        
+        // 3. DIZ QUAL ORIGEM É PERMITIDA (o seu frontend)
+        config.setAllowedOrigins(List.of("http://localhost:5173"));
+        
+        // 4. QUAIS MÉTODOS SÃO PERMITIDOS
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        
+        // 5. QUAIS HEADERS SÃO PERMITIDOS (importante para o seu token)
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        
+        // 6. PERMITE CREDENCIAIS (cookies, etc.)
+        config.setAllowCredentials(true);
+        
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config); // Aplica esta config para TODAS as rotas
+        
+        return source;
     }
 }
