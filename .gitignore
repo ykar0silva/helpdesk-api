@@ -42,3 +42,4 @@ build/
 
 # Ignorar o arquivo de senhas e segredos
 src/main/resources/application.properties
+

@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # --- Serviço 1: Banco de Dados PostgreSQL ---
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: helpti_db_container
+    environment:
+      - POSTGRES_DB=helpti_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432" # Libera a porta 5432 para você acessar via pgAdmin se quiser
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persiste os dados mesmo se o container morrer
+    networks:
+      - helpti-network
+
+  # --- Serviço 2: Sua API Java ---
+  api:
+    build: . # Usa o Dockerfile da pasta atual
+    container_name: helpti_api_container
+    depends_on:
+      - postgres-db # Só inicia depois que o banco subir
+    ports:
+      - "8080:8080" # O seu amigo acessa via localhost:8080
+    environment:
+      # AQUI ESTÁ O TRUQUE: Sobrescrevemos o application.properties
+      # Em vez de 'localhost', usamos o nome do serviço 'postgres-db'
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/helpti_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      # Configurações de Upload (Pasta dentro do container)
+      - STORAGE_LOCATION=/app/uploads
+    volumes:
+      - ./uploads:/app/uploads # Mapeia uma pasta local para os uploads não sumirem
+    networks:
+      - helpti-network
+
+volumes:
+  postgres_data:
+
+networks:
+  helpti-network:
+    driver: bridge
