@@ -52,20 +52,25 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // --> 1. LIGA O CORS
             .cors(withDefaults()) 
-            
             .csrf(csrf -> csrf.disable()) 
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/api/login").permitAll()
                 .requestMatchers("/api/empresas").permitAll()
+                
+                // Regras específicas
                 .requestMatchers("/api/dashboard/admin").hasRole("ADMIN")
                 .requestMatchers("/api/dashboard/tecnico").hasRole("TECNICO")
+
+                // --- A LINHA MÁGICA ---
+                .requestMatchers("/api/chamados/**").hasAnyRole("ADMIN", "TECNICO", "CLIENTE")
+                // ----------------------
+                
                 .anyRequest().authenticated() 
             )
             .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class);
-            
+
         return http.build();
     }
     @Bean

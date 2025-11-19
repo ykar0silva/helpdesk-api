@@ -36,6 +36,7 @@ public class JwtTokenService {
                 .withSubject(userDetails.getUsername()) 
                 .withExpiresAt(getExpirationDate()) 
                 .withClaim("roles", roles)
+                .withClaim("id", userDetails.getId())
                 .sign(algorithm);
             return token;
 
@@ -50,4 +51,5 @@ public class JwtTokenService {
             .plusHours(2)
             .toInstant(ZoneOffset.of("-03:00")); // Fuso de Palmas (UTC-3)
     }
+    
 }

@@ -1,4 +1,9 @@
-package br.com.helpTI.helpdeskapi.domain; 
+package br.com.helpTI.helpdeskapi.domain;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonIgnore; // <-- IMPORTANTE
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -7,6 +12,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
 @Entity
@@ -20,20 +26,23 @@ public class Tecnico {
     @Column(nullable = false)
     private String nome;
 
-    @Column(nullable = false, unique = true) // O e-mail será o login
+    @Column(nullable = false, unique = true)
     private String email;
 
     @Column(nullable = false)
-    private String senha; // Falaremos sobre criptografia (BCrypt) depois!
+    private String senha;
 
-
-    @ManyToOne // 1. Muitos Técnicos pertencem a UMA Empresa
-    @JoinColumn(name = "empresa_id", nullable = false) // 2. A "Chave Estrangeira"
+    @ManyToOne
+    @JoinColumn(name = "empresa_id", nullable = false)
     private Empresa empresa;
-
     
+
+    @JsonIgnore // Isso impede o Loop Infinito
+    @OneToMany(mappedBy = "tecnico")
+    private List<Chamado> chamados = new ArrayList<>();
+    // ---------------------------------------------------------------------
+
     // --- Getters e Setters ---
-    // (Lembre-se do Lombok @Getter/@Setter se preferir)
 
     public Long getId() {
         return id;
@@ -73,5 +82,14 @@ public class Tecnico {
 
     public void setEmpresa(Empresa empresa) {
         this.empresa = empresa;
+    }
+
+    // Getter e Setter para a nova lista
+    public List<Chamado> getChamados() {
+        return chamados;
+    }
+
+    public void setChamados(List<Chamado> chamados) {
+        this.chamados = chamados;
     }
 }

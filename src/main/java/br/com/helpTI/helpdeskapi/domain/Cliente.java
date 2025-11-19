@@ -1,14 +1,18 @@
-package br.com.helpTI.helpdeskapi.domain; 
+package br.com.helpTI.helpdeskapi.domain;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonIgnore; // <-- IMPORTANTE: Importe isso
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
 @Entity
@@ -22,26 +26,29 @@ public class Cliente {
     @Column(nullable = false)
     private String nome;
 
-    @Column(nullable = false, unique = true) // O e-mail será o login
+    @Column(nullable = false, unique = true)
     private String email;
 
     @Column(nullable = false)
     private String senha;
 
-    // O nome da empresa onde o cliente trabalha (ex: "Colégio X")
     @Column(nullable = false) 
     private String empresaDoCliente;
 
-    // O perfil de permissão que definimos (USUARIO ou GESTOR)
     @Column(nullable = false)
-    private String perfil; // Para o MVP, String é mais simples. (Depois podemos usar Enum)
+    private String perfil;
 
     // --- Relacionamentos ---
 
-    @ManyToOne // Muitos Clientes pertencem a UMA Empresa (de TI)
-    @JoinColumn(name = "empresa_id", nullable = false) // A "Chave Estrangeira"
+    @ManyToOne
+    @JoinColumn(name = "empresa_id", nullable = false)
     private Empresa empresa;
     
+    // --- MUDANÇA AQUI: Adicionamos a lista de chamados com @JsonIgnore ---
+    @JsonIgnore // Isso impede o Loop Infinito (Erro 1001)
+    @OneToMany(mappedBy = "cliente")
+    private List<Chamado> chamados = new ArrayList<>();
+    // ---------------------------------------------------------------------
 
     // --- Getters e Setters ---
 
@@ -99,5 +106,14 @@ public class Cliente {
 
     public void setEmpresa(Empresa empresa) {
         this.empresa = empresa;
+    }
+
+    // Getter e Setter para a nova lista
+    public List<Chamado> getChamados() {
+        return chamados;
+    }
+
+    public void setChamados(List<Chamado> chamados) {
+        this.chamados = chamados;
     }
 }

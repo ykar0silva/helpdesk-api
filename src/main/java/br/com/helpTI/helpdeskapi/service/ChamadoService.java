@@ -14,6 +14,7 @@ import br.com.helpTI.helpdeskapi.domain.Categoria;
 import br.com.helpTI.helpdeskapi.domain.Chamado;
 import br.com.helpTI.helpdeskapi.domain.Cliente;
 import br.com.helpTI.helpdeskapi.domain.Empresa;
+import br.com.helpTI.helpdeskapi.domain.Nota;
 import br.com.helpTI.helpdeskapi.domain.SubCategoria;
 import br.com.helpTI.helpdeskapi.domain.Tecnico;
 import br.com.helpTI.helpdeskapi.dto.FechamentoChamadoDTO;
@@ -26,6 +27,7 @@ import br.com.helpTI.helpdeskapi.repository.TecnicoRepository;
 import org.springframework.web.multipart.MultipartFile; 
 import java.util.List; 
 import br.com.helpTI.helpdeskapi.domain.Anexo; 
+import br.com.helpTI.helpdeskapi.domain.Nota;
 
 @Service
 public class ChamadoService {
@@ -49,7 +51,7 @@ public class ChamadoService {
         Optional<Chamado> obj = repository.findById(id);
         return obj.orElse(null); // (Vamos tratar exceções depois)
     }
-
+    @Transactional(readOnly = true)
     public List<Chamado> findAllByEmpresa(Long empresaId) {
         Empresa empresa = empresaRepository.findById(empresaId).orElse(null);
         if (empresa != null) {
@@ -60,6 +62,9 @@ public class ChamadoService {
 
     @Transactional
     public Chamado create(Chamado obj, List<MultipartFile> anexos) {
+    	if (obj.getCliente() == null || obj.getCliente().getId() == null) {
+            throw new IllegalArgumentException("ID do Cliente é obrigatório");
+        }
         Cliente cliente = clienteRepository.findById(obj.getCliente().getId()).orElse(null);
         Empresa empresa = empresaRepository.findById(obj.getEmpresa().getId()).orElse(null);
 
@@ -110,6 +115,49 @@ public class ChamadoService {
         
         return repository.save(chamado);
     }
+    
+    @Transactional
+    public Chamado adicionarNota(Long chamadoId, String texto, String autorNome, String autorTipo) {
+        Chamado chamado = findById(chamadoId);
+        
+        Nota nota = new Nota();
+        nota.setTexto(texto);
+        nota.setAutorNome(autorNome);
+        nota.setAutorTipo(autorTipo);
+        nota.setChamado(chamado);
+        
+        chamado.getNotas().add(nota);
+        
+        // Se quem comentou foi um técnico, muda status para EM_ATENDIMENTO
+        if ("TECNICO".equals(autorTipo) && "ABERTO".equals(chamado.getStatus())) {
+            chamado.setStatus("EM_ATENDIMENTO");
+        }
+        
+        return repository.save(chamado);
+    }
+    @Transactional
+    public Chamado trocarTecnico(Long chamadoId, Long novoTecnicoId) {
+        Chamado chamado = repository.findById(chamadoId).orElse(null);
+        Tecnico novoTecnico = tecnicoRepository.findById(novoTecnicoId).orElse(null);
+        
+        if (chamado != null && novoTecnico != null) {
+            chamado.setTecnico(novoTecnico);
+            chamado.setStatus("EM_ATENDIMENTO"); // Garante que o status não fica perdido
+            
+            // Criamos a nota manualmente aqui para evitar conflito de save()
+            Nota nota = new Nota();
+            nota.setTexto("Chamado transferido para " + novoTecnico.getNome());
+            nota.setAutorNome("SISTEMA");
+            nota.setAutorTipo("ADMIN");
+            nota.setChamado(chamado);
+            
+            chamado.getNotas().add(nota);
+            
+            return repository.save(chamado);
+        }
+        return null;
+    }
+    
 
     // --- Fechamento (pelo Técnico) ---
     @Transactional

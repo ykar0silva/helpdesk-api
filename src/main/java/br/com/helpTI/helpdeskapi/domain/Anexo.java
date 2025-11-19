@@ -1,5 +1,7 @@
 package br.com.helpTI.helpdeskapi.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore; // <-- 1. NÃO ESQUEÇA DO IMPORT
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -30,6 +32,7 @@ public class Anexo {
     // Um anexo pertence a um chamado
     @ManyToOne
     @JoinColumn(name = "chamado_id", nullable = false)
+    @JsonIgnore // <-- 2. AQUI ESTÁ A CORREÇÃO! Isso corta o loop infinito.
     private Chamado chamado;
 
     

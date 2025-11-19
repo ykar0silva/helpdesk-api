@@ -30,12 +30,11 @@ public class Chamado {
     @Column(nullable = false)
     private String titulo;
 
-    @Lob // @Lob (Large Object) indica um campo de texto longo
-    @Column(nullable = false)
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String descricao;
 
-    @Lob
-    private String solucao; // (Preenchido pelo técnico no fechamento)
+    @Column(columnDefinition = "TEXT")
+    private String solucao;
 
     @Column(nullable = false)
     private LocalDateTime dataAbertura;
@@ -72,17 +71,24 @@ public class Chamado {
     @JoinColumn(name = "subcategoria_id") // (pode ser nulo ao abrir)
     private SubCategoria subCategoria;
 
-    // --- Relacionamento de Anexos ---
-
-    // Um Chamado tem muitos Anexos.
-    // CascadeType.ALL: Se apagar o chamado, apaga os anexos juntos.
-    // mappedBy: Indica que o 'Anexo' é o dono da relação.
+    
+    @OneToMany(mappedBy = "chamado", cascade = CascadeType.ALL)
+    private List<Nota> notas = new ArrayList<>();
+    
+   
     @OneToMany(mappedBy = "chamado", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Anexo> anexos = new ArrayList<>();
 
-    // --- Campos Financeiros (A sua lógica de pagamento) ---
 
-    // Valor a ser pago ao técnico por este chamado
+    public List<Nota> getNotas() {
+		return notas;
+	}
+
+	public void setNotas(List<Nota> notas) {
+		this.notas = notas;
+	}
+
+	// Valor a ser pago ao técnico por este chamado
     private BigDecimal valorDoChamado; 
 
     // Valor que ainda falta pagar (para o pagamento parcial)
