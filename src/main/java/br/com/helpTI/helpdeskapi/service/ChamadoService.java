@@ -137,25 +137,15 @@ public class ChamadoService {
     }
     @Transactional
     public Chamado trocarTecnico(Long chamadoId, Long novoTecnicoId) {
-        Chamado chamado = repository.findById(chamadoId).orElse(null);
+        Chamado chamado = findById(chamadoId);
         Tecnico novoTecnico = tecnicoRepository.findById(novoTecnicoId).orElse(null);
         
-        if (chamado != null && novoTecnico != null) {
+        if (novoTecnico != null) {
             chamado.setTecnico(novoTecnico);
-            chamado.setStatus("EM_ATENDIMENTO"); // Garante que o status não fica perdido
-            
-            // Criamos a nota manualmente aqui para evitar conflito de save()
-            Nota nota = new Nota();
-            nota.setTexto("Chamado transferido para " + novoTecnico.getNome());
-            nota.setAutorNome("SISTEMA");
-            nota.setAutorTipo("ADMIN");
-            nota.setChamado(chamado);
-            
-            chamado.getNotas().add(nota);
-            
-            return repository.save(chamado);
+            // Adiciona uma nota de sistema avisando da troca
+            adicionarNota(chamadoId, "Chamado transferido para " + novoTecnico.getNome(), "SISTEMA", "ADMIN");
         }
-        return null;
+        return repository.save(chamado);
     }
     
 

@@ -104,6 +104,7 @@ public class ChamadoController {
 		return ResponseEntity.ok().body(obj);
 	}
 
+	
 	// --- ENDPOINT FINANCEIRO (DO ADMIN) ---
 
 	// POST /api/chamados/empresa/1/pagar (Admin registra um pagamento)
@@ -115,4 +116,5 @@ public class ChamadoController {
 		service.registrarPagamento(empresaId, valorPago);
 		return ResponseEntity.ok().build(); // Retorna 200 OK sem corpo
 	}
+	
 }
