@@ -1,6 +1,7 @@
 package br.com.helpTI.helpdeskapi.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpMethod;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -56,17 +57,15 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable()) 
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authorize -> authorize
+            	.requestMatchers(HttpMethod.POST, "/api/chamados/tecnico/*/pagar").hasAuthority("ROLE_ADMIN")
                 .requestMatchers("/api/login").permitAll()
                 .requestMatchers("/api/empresas").permitAll()
                 
-                // Regras específicas
-                .requestMatchers("/api/dashboard/admin").hasRole("ADMIN")
-                .requestMatchers("/api/dashboard/tecnico").hasRole("TECNICO")
-
-                // --- A LINHA MÁGICA ---
-                .requestMatchers("/api/chamados/**").hasAnyRole("ADMIN", "TECNICO", "CLIENTE")
-                // ----------------------
-                
+             // --- CORREÇÃO AQUI: TROCAR 'hasRole' por 'hasAuthority' ---
+                .requestMatchers("/api/dashboard/admin").hasAuthority("ROLE_ADMIN") 
+                .requestMatchers("/api/dashboard/tecnico").hasAuthority("ROLE_TECNICO")
+                .requestMatchers("/api/chamados/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_TECNICO", "ROLE_CLIENTE")
+                .requestMatchers("/api/categorias/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_TECNICO", "ROLE_CLIENTE")
                 .anyRequest().authenticated() 
             )
             .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class);

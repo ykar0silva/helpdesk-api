@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import br.com.helpTI.helpdeskapi.domain.Chamado;
 import br.com.helpTI.helpdeskapi.dto.FechamentoChamadoDTO;
+import br.com.helpTI.helpdeskapi.dto.PagamentoRequest;
 import br.com.helpTI.helpdeskapi.service.ChamadoService;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
@@ -35,7 +36,26 @@ public class ChamadoController {
 		Chamado obj = service.findById(id);
 		return ResponseEntity.ok().body(obj);
 	}
+	
+	// --- ENDPOINTS DE AÇÃO ---
 
+	// 1. GET: Lista chamados pendentes de um técnico
+    @GetMapping(value = "/tecnico/{tecnicoId}/pendentes")
+    public ResponseEntity<List<Chamado>> findAllPendentesByTecnico(@PathVariable Long tecnicoId) {
+        List<Chamado> list = service.findAllPendentesByTecnico(tecnicoId);
+        return ResponseEntity.ok().body(list);
+    }
+
+    // 2. POST: Registra o pagamento em lote para um técnico
+    @PostMapping(value = "/tecnico/{tecnicoId}/pagar")
+    public ResponseEntity<Void> registrarPagamentoPorTecnico(
+            @PathVariable Long tecnicoId, 
+            @RequestBody PagamentoRequest request) {
+
+        service.registrarPagamentoPorTecnico(tecnicoId, request.getValorPago());
+        return ResponseEntity.noContent().build();
+    }
+	
 	// GET /api/chamados/empresa/1 (Busca todos chamados de uma empresa)
 	@GetMapping(value = "/empresa/{empresaId}")
 	public ResponseEntity<List<Chamado>> findAllByEmpresa(@PathVariable Long empresaId) {
@@ -43,8 +63,12 @@ public class ChamadoController {
 		return ResponseEntity.ok().body(list);
 	}
 
-	// --- ENDPOINTS DE AÇÃO ---
-
+	// GET /api/chamados/empresa/1/pendentes (Lista APENAS o que a empresa deve)
+    @GetMapping(value = "/empresa/{empresaId}/pendentes")
+    public ResponseEntity<List<Chamado>> findAllPendentesByEmpresa(@PathVariable Long empresaId) {
+        List<Chamado> list = service.findAllPendentesByEmpresa(empresaId);
+        return ResponseEntity.ok().body(list);
+    }
 	@PostMapping
 	public ResponseEntity<Chamado> create(@RequestParam("chamado") String chamadoJson,
 			@RequestParam(value = "anexos", required = false) List<MultipartFile> anexos) {

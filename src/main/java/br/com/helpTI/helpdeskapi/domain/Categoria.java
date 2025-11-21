@@ -1,14 +1,17 @@
 package br.com.helpTI.helpdeskapi.domain;
 
 import jakarta.persistence.Column;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
-
+import java.util.ArrayList; 
+import java.util.List;
 @Entity
 @Table(name = "categorias")
 public class Categoria {
@@ -18,13 +21,16 @@ public class Categoria {
     private Long id;
 
     @Column(nullable = false)
-    private String nome; // Ex: "Hardware", "Software", "Rede"
+    private String nome;
 
-    // Uma Categoria pertence a uma Empresa (para que cada empresa tenha as suas)
     @ManyToOne
     @JoinColumn(name = "empresa_id", nullable = false)
     private Empresa empresa;
 
+    @JsonIgnore
+    @OneToMany(mappedBy = "categoria")
+    private List<SubCategoria> subCategorias = new ArrayList<>();
+    
     // Getters e Setters
     public Long getId() {
         return id;

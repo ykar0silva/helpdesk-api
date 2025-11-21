@@ -24,6 +24,7 @@ services:
       - postgres-db # Só inicia depois que o banco subir
     ports:
       - "8080:8080" # O seu amigo acessa via localhost:8080
+    stop_grace_period: 1s
     environment:
       # AQUI ESTÁ O TRUQUE: Sobrescrevemos o application.properties
       # Em vez de 'localhost', usamos o nome do serviço 'postgres-db'

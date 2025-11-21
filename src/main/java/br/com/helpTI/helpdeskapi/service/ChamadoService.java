@@ -18,48 +18,82 @@ import br.com.helpTI.helpdeskapi.domain.Nota;
 import br.com.helpTI.helpdeskapi.domain.SubCategoria;
 import br.com.helpTI.helpdeskapi.domain.Tecnico;
 import br.com.helpTI.helpdeskapi.dto.FechamentoChamadoDTO;
+import br.com.helpTI.helpdeskapi.exception.BusinessRuleException;
 import br.com.helpTI.helpdeskapi.repository.CategoriaRepository;
 import br.com.helpTI.helpdeskapi.repository.ChamadoRepository;
 import br.com.helpTI.helpdeskapi.repository.ClienteRepository;
 import br.com.helpTI.helpdeskapi.repository.EmpresaRepository;
 import br.com.helpTI.helpdeskapi.repository.SubCategoriaRepository;
 import br.com.helpTI.helpdeskapi.repository.TecnicoRepository;
-import org.springframework.web.multipart.MultipartFile; 
-import java.util.List; 
-import br.com.helpTI.helpdeskapi.domain.Anexo; 
+import org.springframework.web.multipart.MultipartFile;
+import java.util.List;
+import br.com.helpTI.helpdeskapi.domain.Anexo;
 import br.com.helpTI.helpdeskapi.domain.Nota;
 
 @Service
 public class ChamadoService {
 
-    @Autowired
-    private ChamadoRepository repository;
-    @Autowired
-    private ClienteRepository clienteRepository;
-    @Autowired
-    private TecnicoRepository tecnicoRepository;
-    @Autowired
-    private EmpresaRepository empresaRepository;
-    @Autowired
-    private CategoriaRepository categoriaRepository;
-    @Autowired
-    private SubCategoriaRepository subCategoriaRepository;
-    @Autowired
-    private FileStorageService fileStorageService;
+	@Autowired
+	private ChamadoRepository repository;
+	@Autowired
+	private ClienteRepository clienteRepository;
+	@Autowired
+	private TecnicoRepository tecnicoRepository;
+	@Autowired
+	private EmpresaRepository empresaRepository;
+	@Autowired
+	private CategoriaRepository categoriaRepository;
+	@Autowired
+	private SubCategoriaRepository subCategoriaRepository;
+	@Autowired
+	private FileStorageService fileStorageService;
 
-    public Chamado findById(Long id) {
-        Optional<Chamado> obj = repository.findById(id);
-        return obj.orElse(null); // (Vamos tratar exceções depois)
-    }
-    @Transactional(readOnly = true)
-    public List<Chamado> findAllByEmpresa(Long empresaId) {
-        Empresa empresa = empresaRepository.findById(empresaId).orElse(null);
-        if (empresa != null) {
-            return repository.findAllByEmpresa(empresa);
-        }
-        return List.of(); // Retorna lista vazia
-    }
+	
+	
+	// -------------------------------------------------------------------------
+	// BUSCAS / FINDERS
+	// -------------------------------------------------------------------------
+	public Chamado findById(Long id) {
+		Optional<Chamado> obj = repository.findById(id);
+		return obj.orElse(null); // (Vamos tratar exceções depois)
+	}
 
+	@Transactional(readOnly = true)
+	public List<Chamado> findAllByEmpresa(Long empresaId) {
+		Empresa empresa = empresaRepository.findById(empresaId).orElse(null);
+		if (empresa != null) {
+			return repository.findAllByEmpresa(empresa);
+		}
+		return List.of(); // Retorna lista vazia
+	}
+
+	public List<Chamado> findAllPendentesByEmpresa(Long empresaId) {
+		Empresa empresa = empresaRepository.findById(empresaId).orElse(null);
+		if (empresa != null) {
+			// Usa o método do Repository para buscar por valor pendente > 0
+			return repository.findAllByEmpresaAndValorPendenteGreaterThanOrderByDataFechamentoAsc(empresa,
+					BigDecimal.ZERO);
+		}
+		return List.of();
+	}
+
+	// --- NOVO MÉTODO 1: Listar Pendentes por Técnico ---
+	public List<Chamado> findAllPendentesByTecnico(Long tecnicoId) {
+		Tecnico tecnico = tecnicoRepository.findById(tecnicoId).orElse(null);
+		if (tecnico != null) {
+			// Busca os chamados com valor pendente > R$ 0.00
+			return repository.findAllByTecnicoAndValorPendenteGreaterThanOrderByDataFechamentoAsc(tecnico,
+					BigDecimal.ZERO);
+		}
+		return List.of();
+	}
+    
+    
+    
+ // -------------------------------------------------------------------------
+ // CRIAÇÃO / ATUALIZAÇÃO
+ // -------------------------------------------------------------------------
+    
     @Transactional
     public Chamado create(Chamado obj, List<MultipartFile> anexos) {
     	if (obj.getCliente() == null || obj.getCliente().getId() == null) {
@@ -79,7 +113,6 @@ public class ChamadoService {
         
         Chamado novoChamado = repository.save(obj);
         
-     // 2. Processa os arquivos
         if (anexos != null && !anexos.isEmpty()) {
             for (MultipartFile file : anexos) {
                 if (!file.isEmpty()) {
@@ -117,46 +150,11 @@ public class ChamadoService {
     }
     
     @Transactional
-    public Chamado adicionarNota(Long chamadoId, String texto, String autorNome, String autorTipo) {
-        Chamado chamado = findById(chamadoId);
-        
-        Nota nota = new Nota();
-        nota.setTexto(texto);
-        nota.setAutorNome(autorNome);
-        nota.setAutorTipo(autorTipo);
-        nota.setChamado(chamado);
-        
-        chamado.getNotas().add(nota);
-        
-        // Se quem comentou foi um técnico, muda status para EM_ATENDIMENTO
-        if ("TECNICO".equals(autorTipo) && "ABERTO".equals(chamado.getStatus())) {
-            chamado.setStatus("EM_ATENDIMENTO");
-        }
-        
-        return repository.save(chamado);
-    }
-    @Transactional
-    public Chamado trocarTecnico(Long chamadoId, Long novoTecnicoId) {
-        Chamado chamado = findById(chamadoId);
-        Tecnico novoTecnico = tecnicoRepository.findById(novoTecnicoId).orElse(null);
-        
-        if (novoTecnico != null) {
-            chamado.setTecnico(novoTecnico);
-            // Adiciona uma nota de sistema avisando da troca
-            adicionarNota(chamadoId, "Chamado transferido para " + novoTecnico.getNome(), "SISTEMA", "ADMIN");
-        }
-        return repository.save(chamado);
-    }
-    
-
-    // --- Fechamento (pelo Técnico) ---
-    @Transactional
     public Chamado fecharChamado(Long chamadoId, FechamentoChamadoDTO dto) {
         Chamado chamado = findById(chamadoId);
         Categoria cat = categoriaRepository.findById(dto.getCategoriaId()).orElse(null);
         SubCategoria subCat = subCategoriaRepository.findById(dto.getSubCategoriaId()).orElse(null);
 
-        // Pega o valor do chamado das configurações da Empresa
         BigDecimal valorDoChamado = chamado.getEmpresa().getValorPorChamado();
         
         chamado.setStatus("FECHADO");
@@ -165,16 +163,67 @@ public class ChamadoService {
         chamado.setCategoria(cat);
         chamado.setSubCategoria(subCat);
 
-        // --- AQUI A MÁGICA FINANCEIRA ACONTECE ---
+        // --- CORREÇÃO AQUI ---
+        chamado.setValorPago(BigDecimal.ZERO); // <--- ADICIONE ESTA LINHA PARA INICIALIZAR
         chamado.setValorDoChamado(valorDoChamado);
         chamado.setValorPendente(valorDoChamado); // A "dívida" é criada
+        // -----------------------
 
         // TODO: Enviar e-mail para o cliente com a solução
         
         return repository.save(chamado);
     }
+    
+    
+    
+    
+ // -------------------------------------------------------------------------
+ // PAGAMENTOS / FINANCEIRO
+ // -------------------------------------------------------------------------
+    
 
-    // --- Pagamento (pelo Admin/Dono) ---
+ // ... dentro de ChamadoService.java
+
+    @Transactional
+    public void registrarPagamentoPorTecnico(Long tecnicoId, BigDecimal valorPago) {
+        if (valorPago == null || valorPago.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("O valor do pagamento deve ser maior que zero.");
+        }
+        
+        BigDecimal saldoAPagar = valorPago;
+
+        List<Chamado> pendentes = findAllPendentesByTecnico(tecnicoId);
+        // ------------------------------------------
+
+        for (Chamado chamado : pendentes) {
+            if (saldoAPagar.compareTo(BigDecimal.ZERO) <= 0) {
+                break; // O valor pago já esgotou
+            }
+
+            BigDecimal valorPendenteChamado = chamado.getValorPendente();
+            
+            // 2. Determina o valor a ser aplicado:
+            BigDecimal valorAplicado = saldoAPagar.min(valorPendenteChamado);
+            
+            // 3. Atualiza o chamado
+            chamado.setValorPago(
+            	    // Se o valor anterior for NULL, usa BigDecimal.ZERO para começar a somar.
+            	    (chamado.getValorPago() == null ? BigDecimal.ZERO : chamado.getValorPago())
+            	    .add(valorAplicado)
+            	);
+            chamado.setValorPendente(
+            	    (chamado.getValorPendente() == null ? chamado.getValorDoChamado() : chamado.getValorPendente())
+            	    .subtract(valorAplicado)
+            	);
+            
+            // 4. Atualiza o saldo restante do pagamento do Admin
+            saldoAPagar = saldoAPagar.subtract(valorAplicado);
+
+            repository.save(chamado);
+        }
+        
+    }
+    
     @Transactional
     public void registrarPagamento(Long empresaId, BigDecimal valorPago) {
         Empresa empresa = empresaRepository.findById(empresaId).orElse(null);
@@ -215,7 +264,47 @@ public class ChamadoService {
             repository.save(chamado); // Salva a atualização do chamado
         }
         
-        // Se sobrar dinheiro (valorDisponivel > 0), 
-        // poderia ser registrado como crédito, mas para o MVP está ótimo assim.
     }
+    
+    
+    
+    
+ // -------------------------------------------------------------------------
+ // NOTAS / ANEXOS / TROCAS
+ // -------------------------------------------------------------------------
+    
+    @Transactional
+    public Chamado adicionarNota(Long chamadoId, String texto, String autorNome, String autorTipo) {
+        Chamado chamado = findById(chamadoId);
+        
+        Nota nota = new Nota();
+        nota.setTexto(texto);
+        nota.setAutorNome(autorNome);
+        nota.setAutorTipo(autorTipo);
+        nota.setChamado(chamado);
+        
+        chamado.getNotas().add(nota);
+        
+        // Se quem comentou foi um técnico, muda status para EM_ATENDIMENTO
+        if ("TECNICO".equals(autorTipo) && "ABERTO".equals(chamado.getStatus())) {
+            chamado.setStatus("EM_ATENDIMENTO");
+        }
+        
+        return repository.save(chamado);
+    }
+    
+    
+    @Transactional
+    public Chamado trocarTecnico(Long chamadoId, Long novoTecnicoId) {
+        Chamado chamado = findById(chamadoId);
+        Tecnico novoTecnico = tecnicoRepository.findById(novoTecnicoId).orElse(null);
+        
+        if (novoTecnico != null) {
+            chamado.setTecnico(novoTecnico);
+            // Adiciona uma nota de sistema avisando da troca
+            adicionarNota(chamadoId, "Chamado transferido para " + novoTecnico.getNome(), "SISTEMA", "ADMIN");
+        }
+        return repository.save(chamado);
+    }
+    
 }

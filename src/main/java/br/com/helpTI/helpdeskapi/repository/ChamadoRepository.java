@@ -13,10 +13,14 @@ public interface ChamadoRepository extends JpaRepository<Chamado, Long> {
 
 
     List<Chamado> findAllByEmpresa(Empresa empresa);
-    
+
 
     List<Chamado> findAllByEmpresaAndValorPendenteGreaterThanOrderByDataFechamentoAsc(
         Empresa empresa, 
+        java.math.BigDecimal valorPendente
+    );
+    List<Chamado> findAllByTecnicoAndValorPendenteGreaterThanOrderByDataFechamentoAsc(
+        Tecnico tecnico, 
         java.math.BigDecimal valorPendente
     );
     

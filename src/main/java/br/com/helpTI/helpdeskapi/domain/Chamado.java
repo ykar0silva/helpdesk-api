@@ -45,7 +45,11 @@ public class Chamado {
     private String prioridade; // (Ex: "BAIXA", "MEDIA", "ALTA")
 
     @Column(nullable = false)
-    private String status; // (Ex: "ABERTO", "EM_ATENDIMENTO", "FECHADO")
+    private String status;
+ // Valor total base do chamado
+    private BigDecimal valorPago = BigDecimal.ZERO; 
+    private BigDecimal valorPendente = BigDecimal.ZERO; 
+    private BigDecimal valorDoChamado = BigDecimal.ZERO;
 
     // --- Relacionamentos Principais ---
 
@@ -87,12 +91,6 @@ public class Chamado {
 	public void setNotas(List<Nota> notas) {
 		this.notas = notas;
 	}
-
-	// Valor a ser pago ao técnico por este chamado
-    private BigDecimal valorDoChamado; 
-
-    // Valor que ainda falta pagar (para o pagamento parcial)
-    private BigDecimal valorPendente; 
 
     // "PENDENTE", "PARCIAL", "PAGO"
     private String statusPagamento;
@@ -231,6 +229,14 @@ public class Chamado {
 
 	public void setStatusPagamento(String statusPagamento) {
 		this.statusPagamento = statusPagamento;
+	}
+
+	public BigDecimal getValorPago() {
+		return valorPago;
+	}
+
+	public void setValorPago(BigDecimal valorPago) {
+		this.valorPago = valorPago;
 	} 
     
     
