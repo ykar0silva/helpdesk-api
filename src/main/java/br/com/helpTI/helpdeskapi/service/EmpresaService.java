@@ -40,10 +40,6 @@ public class EmpresaService {
         if(oldObj != null) {
             oldObj.setNomeFantasia(obj.getNomeFantasia());
             oldObj.setEmailResponsavel(obj.getEmailResponsavel());
-            // Atualiza dados White Label
-            oldObj.setCorPrincipal(obj.getCorPrincipal());
-            oldObj.setLogoUrl(obj.getLogoUrl());
-            oldObj.setValorPorChamado(obj.getValorPorChamado());
             return repository.save(oldObj);
         }
         return null;
