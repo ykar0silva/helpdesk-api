@@ -28,15 +28,11 @@ public class TecnicoService {
 
     public Tecnico create(Tecnico obj) {
         obj.setId(null); 
-        
-     // 2. AQUI A MÁGICA ACONTECE
-        // Criptografa a senha antes de salvar
         obj.setSenha(passwordEncoder.encode(obj.getSenha()));
-        
         return repository.save(obj);
     }
     
-    // Método para atualizar (ex: trocar senha ou nome)
+    
     public Tecnico update(Long id, Tecnico obj) {
         Tecnico oldObj = findById(id);
         if (oldObj != null) {

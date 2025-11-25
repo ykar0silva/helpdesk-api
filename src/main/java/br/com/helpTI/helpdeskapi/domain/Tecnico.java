@@ -26,11 +26,26 @@ public class Tecnico {
     @Column(nullable = false)
     private String nome;
 
+    @Column(nullable = true)
+    private String sobrenome;
+    
+    @Column(nullable = true)
+    private String cpf;
+    
+    @Column(nullable = true)
+    private String telefone;
+    
+    @Column(nullable = true)
+    private String especialidades;
+    
     @Column(nullable = false, unique = true)
     private String email;
 
     @Column(nullable = false)
     private String senha;
+    
+    @Column(nullable = false)
+    private String status;
 
     @ManyToOne
     @JoinColumn(name = "empresa_id", nullable = false)
@@ -92,4 +107,44 @@ public class Tecnico {
     public void setChamados(List<Chamado> chamados) {
         this.chamados = chamados;
     }
+
+	public String getSobrenome() {
+		return sobrenome;
+	}
+
+	public void setSobrenome(String sobrenome) {
+		this.sobrenome = sobrenome;
+	}
+
+	public String getCpf() {
+		return cpf;
+	}
+
+	public void setCpf(String cpf) {
+		this.cpf = cpf;
+	}
+
+	public String getTelefone() {
+		return telefone;
+	}
+
+	public void setTelefone(String telefone) {
+		this.telefone = telefone;
+	}
+
+	public String getEspecialidades() {
+		return especialidades;
+	}
+
+	public void setEspecialidades(String especialidades) {
+		this.especialidades = especialidades;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
 }
