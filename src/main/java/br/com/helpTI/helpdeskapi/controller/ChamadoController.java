@@ -39,6 +39,20 @@ public class ChamadoController {
 	
 	// --- ENDPOINTS DE AÇÃO ---
 
+	// 1. ENDPOINT PARA O ADMIN: /api/chamados/empresa/{empresaId}/ativos
+	@GetMapping(value = "/empresa/{empresaId}/ativos")
+	public ResponseEntity<List<Chamado>> findAllAtivosByEmpresa(@PathVariable Long empresaId) {
+	    List<Chamado> list = service.findAllAtivosByEmpresa(empresaId);
+	    return ResponseEntity.ok().body(list);
+	}
+
+	// 2. ENDPOINT PARA O TÉCNICO: /api/chamados/tecnico/{tecnicoId}/ativos
+	@GetMapping(value = "/tecnico/{tecnicoId}/ativos")
+	public ResponseEntity<List<Chamado>> findAllAtivosByTecnico(@PathVariable Long tecnicoId) {
+	    List<Chamado> list = service.findAllAtivosByTecnico(tecnicoId);
+	    return ResponseEntity.ok().body(list);
+	}
+
 	// 1. GET: Lista chamados pendentes de um técnico
     @GetMapping(value = "/tecnico/{tecnicoId}/pendentes")
     public ResponseEntity<List<Chamado>> findAllPendentesByTecnico(@PathVariable Long tecnicoId) {

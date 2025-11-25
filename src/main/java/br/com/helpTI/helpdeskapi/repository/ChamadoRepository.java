@@ -11,28 +11,32 @@ import br.com.helpTI.helpdeskapi.domain.Tecnico; // IMPORTE
 
 public interface ChamadoRepository extends JpaRepository<Chamado, Long> {
 
+	List<Chamado> findAllByEmpresa(Empresa empresa);
 
-    List<Chamado> findAllByEmpresa(Empresa empresa);
+	List<Chamado> findAllByEmpresaAndValorPendenteGreaterThanOrderByDataFechamentoAsc(Empresa empresa,
+			java.math.BigDecimal valorPendente);
 
+	List<Chamado> findAllByTecnicoAndValorPendenteGreaterThanOrderByDataFechamentoAsc(Tecnico tecnico,
+			java.math.BigDecimal valorPendente);
 
-    List<Chamado> findAllByEmpresaAndValorPendenteGreaterThanOrderByDataFechamentoAsc(
-        Empresa empresa, 
-        java.math.BigDecimal valorPendente
-    );
-    List<Chamado> findAllByTecnicoAndValorPendenteGreaterThanOrderByDataFechamentoAsc(
-        Tecnico tecnico, 
-        java.math.BigDecimal valorPendente
-    );
-    
- // 1. Para o Admin: Soma tudo que está pendente na empresa
-    @Query("SELECT SUM(c.valorPendente) FROM Chamado c WHERE c.empresa = :empresa AND c.statusPagamento <> 'PAGO'")
-    BigDecimal sumValorPendenteByEmpresa(@Param("empresa") Empresa empresa);
+	// 1. Para o Admin: Soma tudo que está pendente na empresa
+	@Query("SELECT SUM(c.valorPendente) FROM Chamado c WHERE c.empresa = :empresa AND c.statusPagamento <> 'PAGO'")
+	BigDecimal sumValorPendenteByEmpresa(@Param("empresa") Empresa empresa);
 
-    // 2. Para o Técnico: Soma o valor total de tudo que ele fechou
-    @Query("SELECT SUM(c.valorDoChamado) FROM Chamado c WHERE c.tecnico = :tecnico AND c.status = 'FECHADO'")
-    BigDecimal sumValorDoChamadoByTecnico(@Param("tecnico") Tecnico tecnico);
+	// 2. Para o Técnico: Soma o valor total de tudo que ele fechou
+	@Query("SELECT SUM(c.valorDoChamado) FROM Chamado c WHERE c.tecnico = :tecnico AND c.status = 'FECHADO'")
+	BigDecimal sumValorDoChamadoByTecnico(@Param("tecnico") Tecnico tecnico);
 
-    // 3. Para o Técnico: Soma o que ainda falta ele receber
-    @Query("SELECT SUM(c.valorPendente) FROM Chamado c WHERE c.tecnico = :tecnico AND c.statusPagamento <> 'PAGO'")
-    BigDecimal sumValorPendenteByTecnico(@Param("tecnico") Tecnico tecnico);
+	// 3. Para o Técnico: Soma o que ainda falta ele receber
+	@Query("SELECT SUM(c.valorPendente) FROM Chamado c WHERE c.tecnico = :tecnico AND c.statusPagamento <> 'PAGO'")
+	BigDecimal sumValorPendenteByTecnico(@Param("tecnico") Tecnico tecnico);
+
+	// ChamadoRepository.java
+
+	// 1. Para o Admin: Busca todos os chamados ATIVOS da Empresa (Status !=
+	// FECHADO)
+	List<Chamado> findAllByEmpresaAndStatusNot(Empresa empresa, String status);
+
+	@Query("SELECT c FROM Chamado c WHERE c.tecnico.id = :tecnicoId AND c.status <> 'FECHADO'")
+	List<Chamado> findActiveByTecnicoId(@Param("tecnicoId") Long tecnicoId);
 }

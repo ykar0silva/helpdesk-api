@@ -29,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import br.com.helpTI.helpdeskapi.domain.Anexo;
 import br.com.helpTI.helpdeskapi.domain.Nota;
+import br.com.helpTI.helpdeskapi.exception.ResourceNotFoundException;
 
 @Service
 public class ChamadoService {
@@ -75,6 +76,25 @@ public class ChamadoService {
 					BigDecimal.ZERO);
 		}
 		return List.of();
+	}
+	@Transactional(readOnly = true)
+	public List<Chamado> findAllAtivosByEmpresa(Long empresaId) {
+	    Empresa empresa = empresaRepository.findById(empresaId)
+	        .orElseThrow(() -> new ResourceNotFoundException(empresaId));
+	    
+	    // Filtra todos exceto os FECHADOS
+	    return repository.findAllByEmpresaAndStatusNot(empresa, "FECHADO"); 
+	}
+	
+	// 2. Método para o Técnico (Todos os ativos do Técnico)
+	@Transactional(readOnly = true)
+	public List<Chamado> findAllAtivosByTecnico(Long tecnicoId) {
+	    // Opcional: Manter esta linha garante que o tecnicoId é válido (lança 404 se não existir)
+	    tecnicoRepository.findById(tecnicoId) 
+	        .orElseThrow(() -> new ResourceNotFoundException(tecnicoId)); 
+	    
+	    // Utiliza a nova query explícita
+	    return repository.findActiveByTecnicoId(tecnicoId);
 	}
 
 	// --- NOVO MÉTODO 1: Listar Pendentes por Técnico ---
