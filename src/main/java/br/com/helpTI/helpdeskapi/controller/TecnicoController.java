@@ -49,4 +49,10 @@ public class TecnicoController {
         Tecnico updatedObj = service.update(id, obj);
         return ResponseEntity.ok().body(updatedObj);
     }
+    
+    @GetMapping(value = "/ativos")
+    public ResponseEntity<List<Tecnico>> findAllAtivos() {
+        List<Tecnico> list = service.findAllAtivos();
+        return ResponseEntity.ok().body(list);
+    }
 }

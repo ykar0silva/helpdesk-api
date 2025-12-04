@@ -195,7 +195,26 @@ public class ChamadoService {
     }
     
     
-    
+ // --- MÉTODOS PARA O DASHBOARD (REGRA DE 24H) ---
+
+    public List<Chamado> getDashboardEmpresa(Long empresaId) {
+        Empresa empresa = empresaRepository.findById(empresaId).orElse(null);
+        if (empresa != null) {
+            // Calcula a data de corte: Agora menos 24 horas
+            LocalDateTime dataLimite = LocalDateTime.now().minusHours(24);
+            return repository.findChamadosDashboardEmpresa(empresa, dataLimite);
+        }
+        return List.of();
+    }
+
+    public List<Chamado> getDashboardTecnico(Long tecnicoId) {
+        Tecnico tecnico = tecnicoRepository.findById(tecnicoId).orElse(null);
+        if (tecnico != null) {
+            LocalDateTime dataLimite = LocalDateTime.now().minusHours(24);
+            return repository.findChamadosDashboardTecnico(tecnico, dataLimite);
+        }
+        return List.of();
+    }
     
  // -------------------------------------------------------------------------
  // PAGAMENTOS / FINANCEIRO

@@ -24,14 +24,14 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource; // <-- IMPO
 import java.util.List; // <-- IMPORTE
 import static org.springframework.security.config.Customizer.withDefaults;
 
-@Configuration // 1. Diz ao Spring que esta é uma classe de configuração
-@EnableWebSecurity // 2. Liga a "tomada" da segurança web do Spring
+@Configuration 
+@EnableWebSecurity 
 public class SecurityConfig {
 
-	@Autowired // 1. INJETA O NOSSO SERVIÇO DE BUSCA DE UTILIZADOR
+	@Autowired 
     private UserDetailsServiceIm userDetailsService;
 
-	@Autowired // 1. INJETE O NOSSO FILTRO
+	@Autowired 
     private SecurityFilter securityFilter;
     // 3. Este é o "Bean" que sabe criptografar senhas
     @Bean
@@ -76,16 +76,16 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         
-        // 3. DIZ QUAL ORIGEM É PERMITIDA (o seu frontend)
+        // 3. DIZ QUAL ORIGEM É PERMITIDA 
         config.setAllowedOrigins(List.of("http://localhost:5173"));
         
         // 4. QUAIS MÉTODOS SÃO PERMITIDOS
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         
-        // 5. QUAIS HEADERS SÃO PERMITIDOS (importante para o seu token)
+        // 5. QUAIS HEADERS SÃO PERMITIDOS 
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         
-        // 6. PERMITE CREDENCIAIS (cookies, etc.)
+        // 6. PERMITE CREDENCIAIS 
         config.setAllowCredentials(true);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

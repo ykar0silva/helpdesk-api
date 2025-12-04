@@ -155,4 +155,18 @@ public class ChamadoController {
 		return ResponseEntity.ok().build(); // Retorna 200 OK sem corpo
 	}
 	
+	// GET /api/chamados/empresa/{id}/dashboard (Visão Admin com regra de 24h)
+    @GetMapping(value = "/empresa/{empresaId}/dashboard")
+    public ResponseEntity<List<Chamado>> getDashboardEmpresa(@PathVariable Long empresaId) {
+        List<Chamado> list = service.getDashboardEmpresa(empresaId);
+        return ResponseEntity.ok().body(list);
+    }
+
+    // GET /api/chamados/tecnico/{tecnicoId}/dashboard (Visão Técnico com regra de 24h)
+    @GetMapping(value = "/tecnico/{tecnicoId}/dashboard")
+    public ResponseEntity<List<Chamado>> getDashboardTecnico(@PathVariable Long tecnicoId) {
+        List<Chamado> list = service.getDashboardTecnico(tecnicoId);
+        return ResponseEntity.ok().body(list);
+    }
+	
 }

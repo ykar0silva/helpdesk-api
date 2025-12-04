@@ -32,16 +32,26 @@ public class TecnicoService {
         return repository.save(obj);
     }
     
+    public List<Tecnico> findAllAtivos() {
+        return repository.findByStatus("ATIVO");
+    }
     
     public Tecnico update(Long id, Tecnico obj) {
         Tecnico oldObj = findById(id);
+        
         if (oldObj != null) {
             oldObj.setNome(obj.getNome());
             oldObj.setEmail(obj.getEmail());
-            // Se a senha foi enviada, atualiza. Se não, mantém a antiga.
+            oldObj.setSobrenome(obj.getSobrenome());
+            oldObj.setCpf(obj.getCpf());
+            oldObj.setTelefone(obj.getTelefone());
+            oldObj.setEspecialidades(obj.getEspecialidades());
+            oldObj.setStatus(obj.getStatus());
+           
             if(obj.getSenha() != null && !obj.getSenha().isEmpty()) {
-                 oldObj.setSenha(obj.getSenha());
+                 oldObj.setSenha(passwordEncoder.encode(obj.getSenha()));
             }
+            
             return repository.save(oldObj);
         }
         return null;

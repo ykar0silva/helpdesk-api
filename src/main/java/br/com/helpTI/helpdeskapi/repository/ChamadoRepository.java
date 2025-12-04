@@ -7,6 +7,8 @@ import br.com.helpTI.helpdeskapi.domain.Empresa;
 import org.springframework.data.jpa.repository.Query; // IMPORTE
 import org.springframework.data.repository.query.Param; // IMPORTE
 import java.math.BigDecimal; // IMPORTE
+import java.time.LocalDateTime;
+
 import br.com.helpTI.helpdeskapi.domain.Tecnico; // IMPORTE
 
 public interface ChamadoRepository extends JpaRepository<Chamado, Long> {
@@ -39,4 +41,12 @@ public interface ChamadoRepository extends JpaRepository<Chamado, Long> {
 
 	@Query("SELECT c FROM Chamado c WHERE c.tecnico.id = :tecnicoId AND c.status <> 'FECHADO'")
 	List<Chamado> findActiveByTecnicoId(@Param("tecnicoId") Long tecnicoId);
+	
+	// 1. Para o ADMIN (Empresa): Abertos OU Fechados recentemente
+    @Query("SELECT c FROM Chamado c WHERE c.empresa = :empresa AND (c.status <> 'FECHADO' OR c.dataFechamento >= :dataLimite)")
+    List<Chamado> findChamadosDashboardEmpresa(@Param("empresa") Empresa empresa, @Param("dataLimite") LocalDateTime dataLimite);
+
+    // 2. Para o TÉCNICO (Pessoal): Abertos OU Fechados recentemente
+    @Query("SELECT c FROM Chamado c WHERE c.tecnico = :tecnico AND (c.status <> 'FECHADO' OR c.dataFechamento >= :dataLimite)")
+    List<Chamado> findChamadosDashboardTecnico(@Param("tecnico") Tecnico tecnico, @Param("dataLimite") LocalDateTime dataLimite);
 }
