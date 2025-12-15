@@ -1,5 +1,6 @@
 package br.com.helpTI.helpdeskapi.domain;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,6 +38,9 @@ public class Cliente {
 
     @Column(nullable = false)
     private String perfil;
+    
+    private String tokenRecuperacao;
+    private LocalDateTime dataExpiracaoToken;
 
     // --- Relacionamentos ---
 
@@ -116,4 +120,20 @@ public class Cliente {
     public void setChamados(List<Chamado> chamados) {
         this.chamados = chamados;
     }
+
+	public String getTokenRecuperacao() {
+		return tokenRecuperacao;
+	}
+
+	public void setTokenRecuperacao(String tokenRecuperacao) {
+		this.tokenRecuperacao = tokenRecuperacao;
+	}
+
+	public LocalDateTime getDataExpiracaoToken() {
+		return dataExpiracaoToken;
+	}
+
+	public void setDataExpiracaoToken(LocalDateTime dataExpiracaoToken) {
+		this.dataExpiracaoToken = dataExpiracaoToken;
+	}
 }

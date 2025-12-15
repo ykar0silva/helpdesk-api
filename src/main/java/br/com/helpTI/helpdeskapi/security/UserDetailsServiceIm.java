@@ -1,7 +1,7 @@
 package br.com.helpTI.helpdeskapi.security;
 
 import java.util.Optional;
-import java.util.Set; // Importe este
+import java.util.Set; 
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -26,40 +26,35 @@ public class UserDetailsServiceIm implements UserDetailsService {
     private TecnicoRepository tecnicoRepo;
     
     @Autowired
-    private EmpresaRepository empresaRepo; // Para o login do "Dono/Admin"
+    private EmpresaRepository empresaRepo; 
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         
-        // 1. Procura no repositório de Clientes
-        Optional<Cliente> clienteOpt = clienteRepo.findByEmail(email);
+        // 1. Cliente: Busca ignorando maiúsculas/minúsculas
+        Optional<Cliente> clienteOpt = clienteRepo.findByEmailIgnoreCase(email);
         if(clienteOpt.isPresent()) {
             Cliente cliente = clienteOpt.get();
-            // Passa as permissões (ROLE_CLIENTE e o Perfil GESTOR/USUARIO)
             Set<String> roles = Set.of("ROLE_CLIENTE", "ROLE_" + cliente.getPerfil().toUpperCase());
             return new UserDetailsImpl(cliente.getId(), cliente.getEmail(), cliente.getSenha(), roles);
         }
         
-        // 2. Se não achou, procura no repositório de Técnicos
-        Optional<Tecnico> tecnicoOpt = tecnicoRepo.findByEmail(email);
+        // 2. Técnico: Busca ignorando maiúsculas/minúsculas
+        Optional<Tecnico> tecnicoOpt = tecnicoRepo.findByEmailIgnoreCase(email);
         if(tecnicoOpt.isPresent()) {
             Tecnico tecnico = tecnicoOpt.get();
             Set<String> roles = Set.of("ROLE_TECNICO");
             return new UserDetailsImpl(tecnico.getId(), tecnico.getEmail(), tecnico.getSenha(), roles);
         }
 
-        // 3. Se não achou, procura no repositório de Empresas (o "Dono")
+        // 3. Empresa: Mantido o padrão antigo (Responsavel)
         Optional<Empresa> empresaOpt = empresaRepo.findByEmailResponsavel(email);
         if(empresaOpt.isPresent()) {
             Empresa empresa = empresaOpt.get();
             Set<String> roles = Set.of("ROLE_ADMIN");
-            // Usamos a senha do Dono (que precisaremos adicionar na entidade Empresa)
             return new UserDetailsImpl(empresa.getId(), empresa.getEmailResponsavel(), empresa.getSenha(), roles);
-            
-            // POR ENQUANTO, vamos parar aqui até ajustar a entidade Empresa
         }
 
-        // 4. Se não achou em lugar nenhum
         throw new UsernameNotFoundException("Usuário não encontrado com o e-mail: " + email);
     }
 }

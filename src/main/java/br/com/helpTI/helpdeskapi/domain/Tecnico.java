@@ -1,5 +1,6 @@
 package br.com.helpTI.helpdeskapi.domain;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,6 +47,9 @@ public class Tecnico {
     
     @Column(nullable = false)
     private String status;
+    
+    private String tokenRecuperacao;
+    private LocalDateTime dataExpiracaoToken;
 
     @ManyToOne
     @JoinColumn(name = "empresa_id", nullable = false)
@@ -146,5 +150,21 @@ public class Tecnico {
 
 	public void setStatus(String status) {
 		this.status = status;
+	}
+
+	public String getTokenRecuperacao() {
+		return tokenRecuperacao;
+	}
+
+	public void setTokenRecuperacao(String tokenRecuperacao) {
+		this.tokenRecuperacao = tokenRecuperacao;
+	}
+
+	public LocalDateTime getDataExpiracaoToken() {
+		return dataExpiracaoToken;
+	}
+
+	public void setDataExpiracaoToken(LocalDateTime dataExpiracaoToken) {
+		this.dataExpiracaoToken = dataExpiracaoToken;
 	}
 }

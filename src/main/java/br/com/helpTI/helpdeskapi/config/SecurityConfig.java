@@ -59,7 +59,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(authorize -> authorize
             	.requestMatchers(HttpMethod.POST, "/api/chamados/tecnico/*/pagar").hasAuthority("ROLE_ADMIN")
                 .requestMatchers("/api/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/forgot-password").permitAll()
                 .requestMatchers("/api/empresas").permitAll()
+
                 
              // --- CORREÇÃO AQUI: TROCAR 'hasRole' por 'hasAuthority' ---
                 .requestMatchers("/api/dashboard/admin").hasAuthority("ROLE_ADMIN") 
@@ -89,7 +91,9 @@ public class SecurityConfig {
         config.setAllowCredentials(true);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config); // Aplica esta config para TODAS as rotas
+        source.registerCorsConfiguration("/**", config);
+        
+        config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:5175"));
         
         return source;
     }
