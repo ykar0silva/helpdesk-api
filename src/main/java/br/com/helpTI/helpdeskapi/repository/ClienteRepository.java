@@ -6,6 +6,6 @@ import java.util.Optional;
 
 public interface ClienteRepository extends JpaRepository<Cliente, Long> {
 	
-	
+	Optional<Cliente> findByTokenRecuperacao(String token);
 	Optional<Cliente> findByEmailIgnoreCase(String email);
 }

@@ -47,6 +47,8 @@ public class AuthController {
     @Autowired
     private EmailService emailService;
 
+    @Autowired
+    private org.springframework.security.crypto.password.PasswordEncoder encoder;
     // ==========================================
     // MÉTODO 1: LOGIN (URL: /api/login)
     // ==========================================
@@ -122,5 +124,51 @@ public class AuthController {
                 + "Se não foi você, ignore esta mensagem.";
         
         emailService.enviarEmailTexto(email, "Recuperação de Senha - HelpTI", mensagem);
+    }
+    
+ // ==========================================
+    // MÉTODO 3: REDEFINIR A SENHA (URL: /api/reset-password)
+    // ==========================================
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@RequestBody br.com.helpTI.helpdeskapi.dto.ResetPasswordDTO dto) {
+        String token = dto.getToken();
+        String novaSenha = dto.getNovaSenha();
+
+        // 1. PROCURA NO TÉCNICO
+        Optional<Tecnico> tec = tecnicoRepository.findByTokenRecuperacao(token);
+        if (tec.isPresent()) {
+            Tecnico tecnico = tec.get();
+            validarToken(tecnico.getDataExpiracaoToken()); // Verifica validade
+
+            tecnico.setSenha(encoder.encode(novaSenha)); // Criptografa
+            tecnico.setTokenRecuperacao(null); // Queima o token (uso único)
+            tecnico.setDataExpiracaoToken(null);
+            tecnicoRepository.save(tecnico);
+            
+            return ResponseEntity.ok().build();
+        }
+
+        // 2. PROCURA NO CLIENTE
+        Optional<Cliente> cli = clienteRepository.findByTokenRecuperacao(token);
+        if (cli.isPresent()) {
+            Cliente cliente = cli.get();
+            validarToken(cliente.getDataExpiracaoToken());
+
+            cliente.setSenha(encoder.encode(novaSenha));
+            cliente.setTokenRecuperacao(null);
+            cliente.setDataExpiracaoToken(null);
+            clienteRepository.save(cliente);
+            
+            return ResponseEntity.ok().build();
+        }
+
+        throw new RuntimeException("Token inválido ou expirado!");
+    }
+
+    // Validação auxiliar
+    private void validarToken(LocalDateTime expiracao) {
+        if (expiracao == null || expiracao.isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Link expirado! Solicite uma nova recuperação.");
+        }
     }
 }

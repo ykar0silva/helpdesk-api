@@ -59,9 +59,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(authorize -> authorize
             	.requestMatchers(HttpMethod.POST, "/api/chamados/tecnico/*/pagar").hasAuthority("ROLE_ADMIN")
                 .requestMatchers("/api/login").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/forgot-password").permitAll()
                 .requestMatchers("/api/empresas").permitAll()
-
+                .requestMatchers(HttpMethod.POST, "/api/reset-password").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/forgot-password").permitAll()
                 
              // --- CORREÇÃO AQUI: TROCAR 'hasRole' por 'hasAuthority' ---
                 .requestMatchers("/api/dashboard/admin").hasAuthority("ROLE_ADMIN") 

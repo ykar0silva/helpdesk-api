@@ -9,6 +9,6 @@ import java.util.Optional;
 public interface TecnicoRepository extends JpaRepository<Tecnico, Long> {
 	Optional<Tecnico> findByEmail(String email);
     Optional<Tecnico> findByEmailIgnoreCase(String email);
-    
+    Optional<Tecnico> findByTokenRecuperacao(String token);
 	List<Tecnico> findByStatus(String status);
 }
