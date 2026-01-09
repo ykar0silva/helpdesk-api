@@ -4,12 +4,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.UUID; // Importe este
-
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import java.net.MalformedURLException;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 
 @Service
 public class FileStorageService {
@@ -53,5 +55,22 @@ public class FileStorageService {
         }
     }
 
-    // (Futuramente, podemos criar o método "loadFile" para fazer o download)
+
+    public Resource loadFileAsResource(String fileName) {
+        try {
+            // Monta o caminho completo: uploads/nome-do-arquivo.png
+            Path filePath = this.fileStorageLocation.resolve(fileName).normalize();
+            
+            // Transforma o caminho em um Recurso (Resource) do Spring
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists()) {
+                return resource;
+            } else {
+                throw new RuntimeException("Arquivo não encontrado: " + fileName);
+            }
+        } catch (MalformedURLException ex) {
+            throw new RuntimeException("Arquivo não encontrado " + fileName, ex);
+        }
+    }
 }
