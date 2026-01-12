@@ -4,12 +4,12 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-
+import java.util.stream.Collectors;
+import java.util.Comparator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-
 import br.com.helpTI.helpdeskapi.domain.Anexo;
 import br.com.helpTI.helpdeskapi.domain.Categoria;
 import br.com.helpTI.helpdeskapi.domain.Chamado;
@@ -148,6 +148,34 @@ public class ChamadoService {
         
         return repository.save(chamado);
     }
+    
+
+    public List<Chamado> findAll() {
+ 		// 1. Busca todos os chamados do banco
+ 		List<Chamado> todos = repository.findAll();
+ 		
+ 		// 2. Aplica as regras de negócio em memória
+ 		return todos.stream()
+ 			.filter(c -> {
+ 				// REGRA A: Se o status NÃO for FECHADO, mostra sempre.
+ 				if (!"FECHADO".equals(c.getStatus())) {
+ 					return true;
+ 				}
+ 				
+ 				// REGRA B: Se for FECHADO, só mostra se a Data de Fechamento for recente (menos de 24h atrás)
+ 				if (c.getDataFechamento() != null) {
+ 					LocalDateTime agoraMenos24h = LocalDateTime.now().minusHours(24);
+ 					// isAfter significa: a data do fechamento é "depois" (maior) que 24h atrás?
+ 					return c.getDataFechamento().isAfter(agoraMenos24h);
+ 				}
+ 				
+ 				// Se fechado e sem data, esconde.
+ 				return false;
+ 			})
+ 			// REGRA C: Ordenação Decrescente por ID (O ID maior/mais novo aparece primeiro)
+ 			.sorted((c1, c2) -> c2.getId().compareTo(c1.getId()))
+ 			.collect(Collectors.toList());
+ 	}
     
     @Transactional
     public Chamado fecharChamado(Long chamadoId, FechamentoChamadoDTO dto) {

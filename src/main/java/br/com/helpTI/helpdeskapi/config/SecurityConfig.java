@@ -51,32 +51,36 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authorize -> authorize
-                // Rota de pagamento (Admin)
+                // 1. Rotas Públicas (Login, Cadastro, Arquivos)
+                .requestMatchers(HttpMethod.POST, "/api/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/empresas").permitAll() // Cadastro de empresa
+                .requestMatchers(HttpMethod.POST, "/api/clientes").permitAll() // auto-cadastro de cliente
+                .requestMatchers(HttpMethod.POST, "/api/auth/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/files/**").permitAll() // Imagens
+
+                // 2. Rotas Específicas (Ordem importa: Do mais específico para o genérico)
+                
+                // Pagamento (Só Admin)
                 .requestMatchers(HttpMethod.POST, "/api/chamados/tecnico/*/pagar").hasAuthority("ROLE_ADMIN")
                 
-                // Rotas Públicas (Login, Empresas, Senha)
-                .requestMatchers("/api/login").permitAll()
-                .requestMatchers("/api/empresas").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/reset-password").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/forgot-password").permitAll()
-
-                // --- A CORREÇÃO MÁGICA ESTÁ AQUI ---
-                // Libera o download de imagens para o navegador conseguir exibir
-                .requestMatchers(HttpMethod.GET, "/api/files/**").permitAll()
-                // -----------------------------------
-
-                // Dashboards
+                // Dashboards Específicos
                 .requestMatchers("/api/dashboard/admin").hasAuthority("ROLE_ADMIN")
                 .requestMatchers("/api/dashboard/tecnico").hasAuthority("ROLE_TECNICO")
-                
-                // Chamados e Categorias (Autenticados)
-                .requestMatchers("/api/chamados/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_TECNICO", "ROLE_CLIENTE")
-                .requestMatchers("/api/categorias/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_TECNICO", "ROLE_CLIENTE")
-                
-                // Swagger (Opcional, se usar)
-                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll()
+                .requestMatchers("/api/dashboard/cliente").hasAuthority("ROLE_CLIENTE")
 
-                // Qualquer outra coisa exige login
+                // 3. Chamados 
+                // Permitimos explicitamente GET para todos os perfis logados
+                .requestMatchers(HttpMethod.GET, "/api/chamados/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_TECNICO", "ROLE_CLIENTE")
+                .requestMatchers(HttpMethod.POST, "/api/chamados/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_TECNICO", "ROLE_CLIENTE")
+                .requestMatchers(HttpMethod.PUT, "/api/chamados/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_TECNICO", "ROLE_CLIENTE")
+
+                // Categorias
+                .requestMatchers(HttpMethod.GET, "/api/categorias/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_TECNICO", "ROLE_CLIENTE")
+
+                // Swagger (Documentação)
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+
+                // Qualquer outra rota precisa estar autenticado
                 .anyRequest().authenticated()
             )
             .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class);
@@ -88,11 +92,12 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         
-        // Permite o Frontend (localhost:5173 e 5175)
+        // Garante que o frontend consiga acessar
         config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:5175"));
-        
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        
+        // Headers essenciais para o token trafegar
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         config.setAllowCredentials(true);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
