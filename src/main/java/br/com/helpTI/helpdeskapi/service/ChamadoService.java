@@ -5,8 +5,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.Comparator;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -52,6 +53,74 @@ public class ChamadoService {
         return obj.orElse(null);
     }
 
+
+    public List<Chamado> findAll() {
+        // 1. Descobre quem é o usuário logado
+        String emailUsuario = getEmailUsuarioLogado();
+
+        // 2. Verifica se é TÉCNICO (Vê tudo)
+        if (tecnicoRepository.findByEmail(emailUsuario).isPresent()) {
+            return filtrarEOrdenar(repository.findAll());
+        }
+
+        // 3. Verifica se é CLIENTE
+        Optional<Cliente> clienteOpt = clienteRepository.findByEmailIgnoreCase(emailUsuario);
+        
+        if (clienteOpt.isPresent()) {
+            Cliente cliente = clienteOpt.get();
+
+            // CORREÇÃO: Como getPerfil() é uma String, comparamos direto sem stream()
+            String perfil = cliente.getPerfil();
+
+            // Verifica se é GESTOR (compara se o texto é "3", "GESTOR" ou "ROLE_GESTOR")
+            boolean isGestor = perfil != null && (
+                perfil.equals("3") || 
+                perfil.equalsIgnoreCase("GESTOR") || 
+                perfil.equalsIgnoreCase("ROLE_GESTOR")
+            );
+
+            if (isGestor) {
+                // GESTOR: Vê tudo da EMPRESA
+                return filtrarEOrdenar(repository.findAllByEmpresa(cliente.getEmpresa()));
+            } else {
+                // COMUM: Vê só os DELE (ID)
+                return filtrarEOrdenar(repository.findAllByClienteId(cliente.getId()));
+            }
+        }
+
+        return List.of();
+    }
+    
+    // Método auxiliar para pegar o email do token
+    private String getEmailUsuarioLogado() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (principal instanceof UserDetails) {
+            return ((UserDetails) principal).getUsername();
+        } else {
+            return principal.toString();
+        }
+    }
+
+    // Método auxiliar para aplicar a regra de 24h e Ordenação
+    private List<Chamado> filtrarEOrdenar(List<Chamado> chamados) {
+        return chamados.stream()
+            .filter(c -> {
+                // Se NÃO estiver fechado, mostra.
+                if (!"FECHADO".equals(c.getStatus())) return true;
+                
+                // Se fechado, só mostra se foi nas últimas 24h
+                if (c.getDataFechamento() != null) {
+                    LocalDateTime agoraMenos24h = LocalDateTime.now().minusHours(24);
+                    return c.getDataFechamento().isAfter(agoraMenos24h);
+                }
+                return false;
+            })
+            // Ordena do mais novo para o mais velho (ID decrescente)
+            .sorted((c1, c2) -> c2.getId().compareTo(c1.getId()))
+            .collect(Collectors.toList());
+    }
+    // --------------------------------
+
     @Transactional(readOnly = true)
     public List<Chamado> findAllByEmpresa(Long empresaId) {
         Empresa empresa = empresaRepository.findById(empresaId).orElse(null);
@@ -81,8 +150,7 @@ public class ChamadoService {
         tecnicoRepository.findById(tecnicoId) 
             .orElseThrow(() -> new ResourceNotFoundException("Técnico não encontrado: " + tecnicoId)); 
         
-        // Certifique-se que este método existe no seu Repository, se não existir, use findAllByTecnico...
-        return repository.findAllByTecnicoId(tecnicoId); // Ajuste conforme o nome no seu Repository
+        return repository.findAllByTecnicoId(tecnicoId); 
     }
 
     public List<Chamado> findAllPendentesByTecnico(Long tecnicoId) {
@@ -114,8 +182,6 @@ public class ChamadoService {
         obj.setValorDoChamado(BigDecimal.ZERO);
         obj.setValorPendente(BigDecimal.ZERO);
         
-        // OBS: Categoria, Latitude e Longitude já vêm preenchidos no 'obj' pelo Controller
-        
         Chamado novoChamado = repository.save(obj);
         
         if (anexos != null && !anexos.isEmpty()) {
@@ -137,7 +203,6 @@ public class ChamadoService {
         return repository.save(novoChamado);
     }
 
-    // --- Atendimento ---
     @Transactional
     public Chamado atenderChamado(Long chamadoId, Long tecnicoId) {
         Chamado chamado = findById(chamadoId);
@@ -148,55 +213,18 @@ public class ChamadoService {
         
         return repository.save(chamado);
     }
-    
 
-    public List<Chamado> findAll() {
- 		// 1. Busca todos os chamados do banco
- 		List<Chamado> todos = repository.findAll();
- 		
- 		// 2. Aplica as regras de negócio em memória
- 		return todos.stream()
- 			.filter(c -> {
- 				// REGRA A: Se o status NÃO for FECHADO, mostra sempre.
- 				if (!"FECHADO".equals(c.getStatus())) {
- 					return true;
- 				}
- 				
- 				// REGRA B: Se for FECHADO, só mostra se a Data de Fechamento for recente (menos de 24h atrás)
- 				if (c.getDataFechamento() != null) {
- 					LocalDateTime agoraMenos24h = LocalDateTime.now().minusHours(24);
- 					// isAfter significa: a data do fechamento é "depois" (maior) que 24h atrás?
- 					return c.getDataFechamento().isAfter(agoraMenos24h);
- 				}
- 				
- 				// Se fechado e sem data, esconde.
- 				return false;
- 			})
- 			// REGRA C: Ordenação Decrescente por ID (O ID maior/mais novo aparece primeiro)
- 			.sorted((c1, c2) -> c2.getId().compareTo(c1.getId()))
- 			.collect(Collectors.toList());
- 	}
-    
     @Transactional
     public Chamado fecharChamado(Long chamadoId, FechamentoChamadoDTO dto) {
         Chamado chamado = findById(chamadoId);
         
-        // --- CORREÇÃO DO ERRO DA IMAGEM ---
-        // Buscamos a Categoria pelo ID que veio do DTO
         Categoria cat = categoriaRepository.findById(dto.getCategoriaId()).orElse(null);
         
-        // Agora extraímos apenas o NOME (String) para salvar no chamado
-        // (Assumindo que sua classe Categoria tem um método getNome() ou getDescricao())
         if (cat != null) {
             chamado.setCategoria(cat.getNome()); 
         } else {
-            // Se não achar categoria, salva null ou uma string padrão
             chamado.setCategoria(null);
         }
-
-        // SubCategoria foi removida do MVP, então comentamos para não dar erro
-        // SubCategoria subCat = subCategoriaRepository.findById(dto.getSubCategoriaId()).orElse(null);
-        // chamado.setSubCategoria(subCat);
 
         BigDecimal valorDoChamado = chamado.getEmpresa().getValorPorChamado();
         
@@ -212,7 +240,6 @@ public class ChamadoService {
     }
     
     // --- DASHBOARD ---
-
     public List<Chamado> getDashboardEmpresa(Long empresaId) {
         Empresa empresa = empresaRepository.findById(empresaId).orElse(null);
         if (empresa != null) {
@@ -232,33 +259,21 @@ public class ChamadoService {
     }
     
     // -------------------------------------------------------------------------
-    // PAGAMENTOS
+    // PAGAMENTOS / NOTAS
     // -------------------------------------------------------------------------
-    
     @Transactional
     public void registrarPagamentoPorTecnico(Long tecnicoId, BigDecimal valorPago) {
         if (valorPago == null || valorPago.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("O valor do pagamento deve ser maior que zero.");
         }
-        
         BigDecimal saldoAPagar = valorPago;
         List<Chamado> pendentes = findAllPendentesByTecnico(tecnicoId);
-
         for (Chamado chamado : pendentes) {
             if (saldoAPagar.compareTo(BigDecimal.ZERO) <= 0) break;
-
             BigDecimal valorPendenteChamado = chamado.getValorPendente();
             BigDecimal valorAplicado = saldoAPagar.min(valorPendenteChamado);
-            
-            chamado.setValorPago(
-                (chamado.getValorPago() == null ? BigDecimal.ZERO : chamado.getValorPago())
-                .add(valorAplicado)
-            );
-            chamado.setValorPendente(
-                (chamado.getValorPendente() == null ? chamado.getValorDoChamado() : chamado.getValorPendente())
-                .subtract(valorAplicado)
-            );
-            
+            chamado.setValorPago((chamado.getValorPago() == null ? BigDecimal.ZERO : chamado.getValorPago()).add(valorAplicado));
+            chamado.setValorPendente((chamado.getValorPendente() == null ? chamado.getValorDoChamado() : chamado.getValorPendente()).subtract(valorAplicado));
             saldoAPagar = saldoAPagar.subtract(valorAplicado);
             repository.save(chamado);
         }
@@ -268,19 +283,11 @@ public class ChamadoService {
     public void registrarPagamento(Long empresaId, BigDecimal valorPago) {
         Empresa empresa = empresaRepository.findById(empresaId).orElse(null);
         if (empresa == null) return;
-
-        List<Chamado> pendentes = repository
-            .findAllByEmpresaAndValorPendenteGreaterThanOrderByDataFechamentoAsc(
-                empresa, BigDecimal.ZERO
-            );
-
+        List<Chamado> pendentes = repository.findAllByEmpresaAndValorPendenteGreaterThanOrderByDataFechamentoAsc(empresa, BigDecimal.ZERO);
         BigDecimal valorDisponivel = valorPago;
-
         for (Chamado chamado : pendentes) {
             if (valorDisponivel.compareTo(BigDecimal.ZERO) <= 0) break;
-
             BigDecimal valorDevido = chamado.getValorPendente();
-
             if (valorDisponivel.compareTo(valorDevido) >= 0) {
                 valorDisponivel = valorDisponivel.subtract(valorDevido);
                 chamado.setValorPendente(BigDecimal.ZERO);
@@ -295,26 +302,18 @@ public class ChamadoService {
         }
     }
     
-    // -------------------------------------------------------------------------
-    // NOTAS / ANEXOS / TROCAS
-    // -------------------------------------------------------------------------
-    
     @Transactional
     public Chamado adicionarNota(Long chamadoId, String texto, String autorNome, String autorTipo) {
         Chamado chamado = findById(chamadoId);
-        
         Nota nota = new Nota();
         nota.setTexto(texto);
         nota.setAutorNome(autorNome);
         nota.setAutorTipo(autorTipo);
         nota.setChamado(chamado);
-        
         chamado.getNotas().add(nota);
-        
         if ("TECNICO".equals(autorTipo) && "ABERTO".equals(chamado.getStatus())) {
             chamado.setStatus("EM_ATENDIMENTO");
         }
-        
         return repository.save(chamado);
     }
     
@@ -322,7 +321,6 @@ public class ChamadoService {
     public Chamado trocarTecnico(Long chamadoId, Long novoTecnicoId) {
         Chamado chamado = findById(chamadoId);
         Tecnico novoTecnico = tecnicoRepository.findById(novoTecnicoId).orElse(null);
-        
         if (novoTecnico != null) {
             chamado.setTecnico(novoTecnico);
             adicionarNota(chamadoId, "Chamado transferido para " + novoTecnico.getNome(), "SISTEMA", "ADMIN");

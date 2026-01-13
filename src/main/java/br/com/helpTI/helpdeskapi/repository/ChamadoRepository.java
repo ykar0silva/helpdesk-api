@@ -56,4 +56,6 @@ public interface ChamadoRepository extends JpaRepository<Chamado, Long> {
     // 2. Para o TÉCNICO (Pessoal): Abertos OU Fechados recentemente
     @Query("SELECT c FROM Chamado c WHERE c.tecnico = :tecnico AND (c.status <> 'FECHADO' OR c.dataFechamento >= :dataLimite)")
     List<Chamado> findChamadosDashboardTecnico(@Param("tecnico") Tecnico tecnico, @Param("dataLimite") LocalDateTime dataLimite);
+
+    List<Chamado> findAllByClienteId(Long clienteId);
 }
