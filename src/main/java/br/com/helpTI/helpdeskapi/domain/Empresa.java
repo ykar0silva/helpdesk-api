@@ -4,28 +4,29 @@ import java.math.BigDecimal;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
-// --- Configuração do JPA / Hibernate ---
+import br.com.helpTI.helpdeskapi.domain.enums.TipoEmpresa; 
 
-@Entity // 1. Diz ao JPA que esta classe é uma entidade (uma tabela)
-@Table(name = "empresas") // 2. Define o nome da tabela no banco
+@Entity
+@Table(name = "empresas")
 public class Empresa {
-	
-	
-	
 
-    @Id // 3. Marca este campo como a Chave Primária (Primary Key)
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // 4. Define o auto-incremento
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false) // 5. 'nullable=false' significa que é 'NOT NULL' (obrigatório)
+    @Column(nullable = false)
     private String nomeFantasia;
 
-    @Column(nullable = false, unique = true) // 6. 'unique=true' garante que não haja CNPJs duplicados
+    @Column(nullable = false, unique = true)
     private String cnpj;
 
     @Column(nullable = false)
@@ -34,21 +35,33 @@ public class Empresa {
     @Column(nullable = false)
     private String senha;
     
-    // 7. A logo (White Label)
+    // --- Configuração White Label ---
     private String logoUrl; 
-
-    // 8. A cor (White Label)
     private String corPrincipal; 
 
-    // --- Configurações Financeiras ---
-
-    // 9. Usamos BigDecimal para dinheiro (muito mais preciso que Double)
-    @Column(nullable = false)
+    // --- Configuração Financeira ---
+    @Column(nullable = true)
     private BigDecimal valorPorChamado;
+
+    // =================================================================
+    // NOVOS CAMPOS PARA A LÓGICA DE NEGÓCIO HIERÁRQUICA
+    // =================================================================
+
+    // 1. Define quem é essa empresa (Matriz, Prestadora ou Cliente Final)
+    // Armazena como TEXTO no banco ("PRESTADORA", "CLIENTE_FINAL") para facilitar leitura
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TipoEmpresa tipoEmpresa;
+
+    // 2. O Elo da Corrente (Auto-relacionamento)
+    // Se esta for uma "Empresa Cliente" (Padaria), este campo aponta para a "Prestadora" (TechSolutions).
+    // Se for a Matriz ou uma Prestadora independente, este campo pode ficar NULL.
+    @ManyToOne
+    @JoinColumn(name = "prestadora_id") 
+    private Empresa prestadora;
 
 
     // --- Getters e Setters ---
-    // (Se você instalou o Lombok, pode pular isso e só adicionar @Getter e @Setter em cima da classe)
 
     public Long getId() {
         return id;
@@ -82,6 +95,14 @@ public class Empresa {
         this.emailResponsavel = emailResponsavel;
     }
 
+    public String getSenha() {
+        return senha;
+    }
+
+    public void setSenha(String senha) {
+        this.senha = senha;
+    }
+
     public String getLogoUrl() {
         return logoUrl;
     }
@@ -106,12 +127,21 @@ public class Empresa {
         this.valorPorChamado = valorPorChamado;
     }
 
-	public String getSenha() {
-		return senha;
-	}
+    // --- Novos Getters e Setters ---
 
-	public void setSenha(String senha) {
-		this.senha = senha;
-	}
-    
+    public TipoEmpresa getTipoEmpresa() {
+        return tipoEmpresa;
+    }
+
+    public void setTipoEmpresa(TipoEmpresa tipoEmpresa) {
+        this.tipoEmpresa = tipoEmpresa;
+    }
+
+    public Empresa getPrestadora() {
+        return prestadora;
+    }
+
+    public void setPrestadora(Empresa prestadora) {
+        this.prestadora = prestadora;
+    }
 }

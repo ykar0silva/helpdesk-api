@@ -5,12 +5,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
 import br.com.helpTI.helpdeskapi.domain.Anexo;
 import br.com.helpTI.helpdeskapi.domain.Categoria;
 import br.com.helpTI.helpdeskapi.domain.Chamado;
@@ -50,40 +52,54 @@ public class ChamadoService {
     // -------------------------------------------------------------------------
     public Chamado findById(Long id) {
         Optional<Chamado> obj = repository.findById(id);
-        return obj.orElse(null);
+        return obj.orElseThrow(() -> new ResourceNotFoundException("Chamado não encontrado! ID: " + id));
     }
 
-
     public List<Chamado> findAll() {
-        // 1. Descobre quem é o usuário logado
         String emailUsuario = getEmailUsuarioLogado();
+        System.out.println("🔍 [DEBUG] Solicitante: " + emailUsuario);
 
-        // 2. Verifica se é TÉCNICO (Vê tudo)
+        // 1. TÉCNICO
         if (tecnicoRepository.findByEmail(emailUsuario).isPresent()) {
             return filtrarEOrdenar(repository.findAll());
         }
 
-        // 3. Verifica se é CLIENTE
+        // 2. EMPRESA (Lógica Corrigida)
+        Optional<Empresa> empresaOpt = empresaRepository.findByEmailResponsavel(emailUsuario);
+        if (empresaOpt.isPresent()) {
+            Empresa empresaLogada = empresaOpt.get();
+            System.out.println("🏢 Empresa Logada: " + empresaLogada.getNomeFantasia());
+
+            // --- AQUI ESTÁ A MUDANÇA ---
+            // Buscamos as filhas passando o OBJETO, não o ID.
+            List<Empresa> empresasDaFamilia = empresaRepository.findByPrestadora(empresaLogada);
+            
+            // Adiciona a própria empresa na lista (para ver os próprios chamados)
+            empresasDaFamilia.add(empresaLogada);
+
+            System.out.println("👪 Família encontrada: " + empresasDaFamilia.size() + " empresas.");
+            // ---------------------------
+
+            return filtrarEOrdenar(repository.findAllByEmpresaIn(empresasDaFamilia));
+        }
+
+        // 3. CLIENTE / GESTOR
         Optional<Cliente> clienteOpt = clienteRepository.findByEmailIgnoreCase(emailUsuario);
-        
         if (clienteOpt.isPresent()) {
             Cliente cliente = clienteOpt.get();
-
-            // CORREÇÃO: Como getPerfil() é uma String, comparamos direto sem stream()
             String perfil = cliente.getPerfil();
 
-            // Verifica se é GESTOR (compara se o texto é "3", "GESTOR" ou "ROLE_GESTOR")
-            boolean isGestor = perfil != null && (
-                perfil.equals("3") || 
-                perfil.equalsIgnoreCase("GESTOR") || 
-                perfil.equalsIgnoreCase("ROLE_GESTOR")
-            );
+            boolean isGestor = perfil != null && (perfil.contains("GESTOR") || perfil.equals("3"));
 
             if (isGestor) {
-                // GESTOR: Vê tudo da EMPRESA
-                return filtrarEOrdenar(repository.findAllByEmpresa(cliente.getEmpresa()));
+                Empresa empresaDoGestor = cliente.getEmpresa();
+                
+                // Mesma correção para o Gestor
+                List<Empresa> empresasDaFamilia = empresaRepository.findByPrestadora(empresaDoGestor);
+                empresasDaFamilia.add(empresaDoGestor);
+                
+                return filtrarEOrdenar(repository.findAllByEmpresaIn(empresasDaFamilia));
             } else {
-                // COMUM: Vê só os DELE (ID)
                 return filtrarEOrdenar(repository.findAllByClienteId(cliente.getId()));
             }
         }
@@ -91,7 +107,6 @@ public class ChamadoService {
         return List.of();
     }
     
-    // Método auxiliar para pegar o email do token
     private String getEmailUsuarioLogado() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         if (principal instanceof UserDetails) {
@@ -101,81 +116,47 @@ public class ChamadoService {
         }
     }
 
-    // Método auxiliar para aplicar a regra de 24h e Ordenação
     private List<Chamado> filtrarEOrdenar(List<Chamado> chamados) {
         return chamados.stream()
             .filter(c -> {
-                // Se NÃO estiver fechado, mostra.
                 if (!"FECHADO".equals(c.getStatus())) return true;
-                
-                // Se fechado, só mostra se foi nas últimas 24h
                 if (c.getDataFechamento() != null) {
                     LocalDateTime agoraMenos24h = LocalDateTime.now().minusHours(24);
                     return c.getDataFechamento().isAfter(agoraMenos24h);
                 }
                 return false;
             })
-            // Ordena do mais novo para o mais velho (ID decrescente)
             .sorted((c1, c2) -> c2.getId().compareTo(c1.getId()))
             .collect(Collectors.toList());
     }
-    // --------------------------------
 
-    @Transactional(readOnly = true)
-    public List<Chamado> findAllByEmpresa(Long empresaId) {
-        Empresa empresa = empresaRepository.findById(empresaId).orElse(null);
-        if (empresa != null) {
-            return repository.findAllByEmpresa(empresa);
-        }
-        return List.of();
-    }
-
-    public List<Chamado> findAllPendentesByEmpresa(Long empresaId) {
-        Empresa empresa = empresaRepository.findById(empresaId).orElse(null);
-        if (empresa != null) {
-            return repository.findAllByEmpresaAndValorPendenteGreaterThanOrderByDataFechamentoAsc(empresa, BigDecimal.ZERO);
-        }
-        return List.of();
-    }
-
-    @Transactional(readOnly = true)
-    public List<Chamado> findAllAtivosByEmpresa(Long empresaId) {
-        Empresa empresa = empresaRepository.findById(empresaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Empresa não encontrada: " + empresaId));
-        return repository.findAllByEmpresaAndStatusNot(empresa, "FECHADO"); 
-    }
-    
-    @Transactional(readOnly = true)
-    public List<Chamado> findAllAtivosByTecnico(Long tecnicoId) {
-        tecnicoRepository.findById(tecnicoId) 
-            .orElseThrow(() -> new ResourceNotFoundException("Técnico não encontrado: " + tecnicoId)); 
-        
-        return repository.findAllByTecnicoId(tecnicoId); 
-    }
-
-    public List<Chamado> findAllPendentesByTecnico(Long tecnicoId) {
-        Tecnico tecnico = tecnicoRepository.findById(tecnicoId).orElse(null);
-        if (tecnico != null) {
-            return repository.findAllByTecnicoAndValorPendenteGreaterThanOrderByDataFechamentoAsc(tecnico, BigDecimal.ZERO);
-        }
-        return List.of();
-    }
-    
     // -------------------------------------------------------------------------
     // CRIAÇÃO / ATUALIZAÇÃO
     // -------------------------------------------------------------------------
     
     @Transactional
     public Chamado create(Chamado obj, List<MultipartFile> anexos) {
+        // 1. Valida Cliente
         if (obj.getCliente() == null || obj.getCliente().getId() == null) {
             throw new IllegalArgumentException("ID do Cliente é obrigatório");
         }
-        Cliente cliente = clienteRepository.findById(obj.getCliente().getId()).orElse(null);
-        Empresa empresa = empresaRepository.findById(obj.getEmpresa().getId()).orElse(null);
+        
+        // 2. Busca o Cliente no Banco (Fonte da Verdade)
+        Cliente cliente = clienteRepository.findById(obj.getCliente().getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado"));
 
+        // 3. Define a Empresa Automaticamente
+        Empresa empresaDoCliente = cliente.getEmpresa();
+        
+        if (empresaDoCliente == null) {
+            throw new IllegalStateException("Cliente não possui empresa vinculada! Contate o suporte.");
+        }
+
+        // 4. Configura o Chamado
         obj.setId(null); 
         obj.setCliente(cliente);
-        obj.setEmpresa(empresa);
+        obj.setEmpresa(empresaDoCliente);
+        
         obj.setDataAbertura(LocalDateTime.now());
         obj.setStatus("ABERTO");
         obj.setStatusPagamento("PENDENTE"); 
@@ -184,6 +165,7 @@ public class ChamadoService {
         
         Chamado novoChamado = repository.save(obj);
         
+        // 5. Salva Anexos
         if (anexos != null && !anexos.isEmpty()) {
             for (MultipartFile file : anexos) {
                 if (!file.isEmpty()) {
@@ -206,7 +188,8 @@ public class ChamadoService {
     @Transactional
     public Chamado atenderChamado(Long chamadoId, Long tecnicoId) {
         Chamado chamado = findById(chamadoId);
-        Tecnico tecnico = tecnicoRepository.findById(tecnicoId).orElse(null);
+        Tecnico tecnico = tecnicoRepository.findById(tecnicoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Técnico não encontrado"));
 
         chamado.setTecnico(tecnico);
         chamado.setStatus("EM_ATENDIMENTO");
@@ -218,27 +201,66 @@ public class ChamadoService {
     public Chamado fecharChamado(Long chamadoId, FechamentoChamadoDTO dto) {
         Chamado chamado = findById(chamadoId);
         
-        Categoria cat = categoriaRepository.findById(dto.getCategoriaId()).orElse(null);
-        
-        if (cat != null) {
-            chamado.setCategoria(cat.getNome()); 
-        } else {
-            chamado.setCategoria(null);
+        if (dto.getCategoriaId() != null) {
+            Categoria cat = categoriaRepository.findById(dto.getCategoriaId()).orElse(null);
+            if (cat != null) chamado.setCategoria(cat.getNome());
         }
 
-        BigDecimal valorDoChamado = chamado.getEmpresa().getValorPorChamado();
+        BigDecimal valorPorChamado = BigDecimal.ZERO;
+        if(chamado.getEmpresa().getValorPorChamado() != null) {
+            valorPorChamado = chamado.getEmpresa().getValorPorChamado();
+        }
         
         chamado.setStatus("FECHADO");
         chamado.setDataFechamento(LocalDateTime.now());
         chamado.setSolucao(dto.getSolucao());
 
         chamado.setValorPago(BigDecimal.ZERO); 
-        chamado.setValorDoChamado(valorDoChamado);
-        chamado.setValorPendente(valorDoChamado); 
+        chamado.setValorDoChamado(valorPorChamado);
+        chamado.setValorPendente(valorPorChamado); 
         
         return repository.save(chamado);
     }
     
+    // --- MÉTODOS DE CONSULTA ADICIONAIS ---
+
+    @Transactional(readOnly = true)
+    public List<Chamado> findAllByEmpresa(Long empresaId) {
+        Empresa empresa = empresaRepository.findById(empresaId).orElse(null);
+        if (empresa != null) {
+            return repository.findAllByEmpresa(empresa);
+        }
+        return List.of();
+    }
+    
+    public List<Chamado> findAllPendentesByEmpresa(Long empresaId) {
+        Empresa empresa = empresaRepository.findById(empresaId).orElse(null);
+        if (empresa != null) {
+            return repository.findAllByEmpresaAndValorPendenteGreaterThanOrderByDataFechamentoAsc(empresa, BigDecimal.ZERO);
+        }
+        return List.of();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Chamado> findAllAtivosByEmpresa(Long empresaId) {
+        Empresa empresa = empresaRepository.findById(empresaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Empresa não encontrada: " + empresaId));
+        return repository.findAllByEmpresaAndStatusNot(empresa, "FECHADO"); 
+    }
+    
+    @Transactional(readOnly = true)
+    public List<Chamado> findAllAtivosByTecnico(Long tecnicoId) {
+        return repository.findAllByTecnicoId(tecnicoId); 
+    }
+
+    public List<Chamado> findAllPendentesByTecnico(Long tecnicoId) {
+        Tecnico tecnico = tecnicoRepository.findById(tecnicoId).orElse(null);
+        if (tecnico != null) {
+            return repository.findAllByTecnicoAndValorPendenteGreaterThanOrderByDataFechamentoAsc(tecnico, BigDecimal.ZERO);
+        }
+        return List.of();
+    }
+
     // --- DASHBOARD ---
     public List<Chamado> getDashboardEmpresa(Long empresaId) {
         Empresa empresa = empresaRepository.findById(empresaId).orElse(null);
@@ -258,9 +280,7 @@ public class ChamadoService {
         return List.of();
     }
     
-    // -------------------------------------------------------------------------
-    // PAGAMENTOS / NOTAS
-    // -------------------------------------------------------------------------
+    // --- PAGAMENTOS / NOTAS ---
     @Transactional
     public void registrarPagamentoPorTecnico(Long tecnicoId, BigDecimal valorPago) {
         if (valorPago == null || valorPago.compareTo(BigDecimal.ZERO) <= 0) {

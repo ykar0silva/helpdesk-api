@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.fasterxml.jackson.annotation.JsonIgnore; // <-- IMPORTANTE: Importe isso
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -32,12 +32,19 @@ public class Cliente {
 
     @Column(nullable = false)
     private String senha;
+    
+    // --- NOVOS CAMPOS ADICIONADOS PARA O CADASTRO ---
+    @Column(unique = true) // CPF não deve se repetir
+    private String cpf;
+
+    private String telefone;
+    // ------------------------------------------------
 
     @Column(nullable = false) 
-    private String empresaDoCliente;
+    private String empresaDoCliente; // Nome fantasia (String)
 
     @Column(nullable = false)
-    private String perfil;
+    private String perfil; // Ex: "CLIENTE", "GESTOR", "ADMIN"
     
     private String tokenRecuperacao;
     private LocalDateTime dataExpiracaoToken;
@@ -46,13 +53,11 @@ public class Cliente {
 
     @ManyToOne
     @JoinColumn(name = "empresa_id", nullable = false)
-    private Empresa empresa;
+    private Empresa empresa; // Objeto real da Empresa (Pai)
     
-    // --- MUDANÇA AQUI: Adicionamos a lista de chamados com @JsonIgnore ---
-    @JsonIgnore // Isso impede o Loop Infinito (Erro 1001)
+    @JsonIgnore 
     @OneToMany(mappedBy = "cliente")
     private List<Chamado> chamados = new ArrayList<>();
-    // ---------------------------------------------------------------------
 
     // --- Getters e Setters ---
 
@@ -87,6 +92,24 @@ public class Cliente {
     public void setSenha(String senha) {
         this.senha = senha;
     }
+    
+    // --- GETTERS E SETTERS DO CPF E TELEFONE ---
+    public String getCpf() {
+        return cpf;
+    }
+
+    public void setCpf(String cpf) {
+        this.cpf = cpf;
+    }
+
+    public String getTelefone() {
+        return telefone;
+    }
+
+    public void setTelefone(String telefone) {
+        this.telefone = telefone;
+    }
+    // -------------------------------------------
 
     public String getEmpresaDoCliente() {
         return empresaDoCliente;
@@ -112,7 +135,6 @@ public class Cliente {
         this.empresa = empresa;
     }
 
-    // Getter e Setter para a nova lista
     public List<Chamado> getChamados() {
         return chamados;
     }
@@ -121,19 +143,19 @@ public class Cliente {
         this.chamados = chamados;
     }
 
-	public String getTokenRecuperacao() {
-		return tokenRecuperacao;
-	}
+    public String getTokenRecuperacao() {
+        return tokenRecuperacao;
+    }
 
-	public void setTokenRecuperacao(String tokenRecuperacao) {
-		this.tokenRecuperacao = tokenRecuperacao;
-	}
+    public void setTokenRecuperacao(String tokenRecuperacao) {
+        this.tokenRecuperacao = tokenRecuperacao;
+    }
 
-	public LocalDateTime getDataExpiracaoToken() {
-		return dataExpiracaoToken;
-	}
+    public LocalDateTime getDataExpiracaoToken() {
+        return dataExpiracaoToken;
+    }
 
-	public void setDataExpiracaoToken(LocalDateTime dataExpiracaoToken) {
-		this.dataExpiracaoToken = dataExpiracaoToken;
-	}
+    public void setDataExpiracaoToken(LocalDateTime dataExpiracaoToken) {
+        this.dataExpiracaoToken = dataExpiracaoToken;
+    }
 }

@@ -16,7 +16,7 @@ import br.com.helpTI.helpdeskapi.domain.Tecnico;
 @Repository
 public interface ChamadoRepository extends JpaRepository<Chamado, Long> {
 
-    // Busca todos por empresa
+    // Busca todos por empresa (apenas chamados diretos)
     List<Chamado> findAllByEmpresa(Empresa empresa);
 
     // Métodos para o Dashboard Financeiro (Empresa)
@@ -25,7 +25,6 @@ public interface ChamadoRepository extends JpaRepository<Chamado, Long> {
     // Métodos para o Dashboard Financeiro (Técnico)
     List<Chamado> findAllByTecnicoAndValorPendenteGreaterThanOrderByDataFechamentoAsc(Tecnico tecnico, BigDecimal valorPendente);
 
-    // --- MÉTODO QUE FALTAVA (Correção do Erro) ---
     // Isso resolve o erro "undefined method findAllByTecnicoId" no Service
     List<Chamado> findAllByTecnicoId(Long tecnicoId);
     
@@ -47,7 +46,7 @@ public interface ChamadoRepository extends JpaRepository<Chamado, Long> {
     @Query("SELECT SUM(c.valorPendente) FROM Chamado c WHERE c.tecnico = :tecnico AND c.statusPagamento <> 'PAGO'")
     BigDecimal sumValorPendenteByTecnico(@Param("tecnico") Tecnico tecnico);
 
-    // --- QUERIES DE DASHBOARD (Limpos de caracteres inválidos) ---
+    // --- QUERIES DE DASHBOARD ---
 
     // 1. Para o ADMIN (Empresa): Abertos OU Fechados recentemente
     @Query("SELECT c FROM Chamado c WHERE c.empresa = :empresa AND (c.status <> 'FECHADO' OR c.dataFechamento >= :dataLimite)")
@@ -58,4 +57,11 @@ public interface ChamadoRepository extends JpaRepository<Chamado, Long> {
     List<Chamado> findChamadosDashboardTecnico(@Param("tecnico") Tecnico tecnico, @Param("dataLimite") LocalDateTime dataLimite);
 
     List<Chamado> findAllByClienteId(Long clienteId);
+
+    // ==================================================================================
+    // 🚨 A NOVA ESTRATÉGIA (LISTA DE EMPRESAS) 🚨
+    // ==================================================================================
+    // Substitui a Native Query complexa. 
+    // O Service manda uma lista (Ex: [Prestadora, Padaria]) e o banco traz tudo de uma vez.
+    List<Chamado> findAllByEmpresaIn(List<Empresa> empresas);
 }

@@ -1,13 +1,13 @@
 package br.com.helpTI.helpdeskapi.security;
 
 import java.util.Collection;
-import java.util.Set; // Importe este
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-// Esta classe "traduz" nossos Clientes/Tecnicos para o formato UserDetails
 public class UserDetailsImpl implements UserDetails {
 
     private static final long serialVersionUID = 1L;
@@ -15,16 +15,28 @@ public class UserDetailsImpl implements UserDetails {
     private Long id;
     private String email;
     private String senha;
-    private Collection<? extends GrantedAuthority> authorities; // As "PERMISSÕES"
+    
+    // Mudamos para Collection para ser mais genérico (aceita Set e List)
+    private Collection<? extends GrantedAuthority> authorities; 
 
+    // --- CONSTRUTOR 1: O NOVO (Que resolve seu erro) ---
+    // Aceita já a lista de permissões prontas que vêm do UserDetailsServiceIm
+    public UserDetailsImpl(Long id, String email, String senha, Collection<? extends GrantedAuthority> authorities) {
+        this.id = id;
+        this.email = email;
+        this.senha = senha;
+        this.authorities = authorities;
+    }
+
+    // --- CONSTRUTOR 2: O ANTIGO (Para compatibilidade) ---
+    // Mantemos este caso alguma outra parte do código ainda envie Strings
     public UserDetailsImpl(Long id, String email, String senha, Set<String> roles) {
         this.id = id;
         this.email = email;
         this.senha = senha;
-        // Transforma o Set<String> (ex: "ROLE_TECNICO") em algo que o Spring entende
         this.authorities = roles.stream()
                 .map(SimpleGrantedAuthority::new)
-                .toList();
+                .collect(Collectors.toSet());
     }
 
     public Long getId() {
@@ -43,27 +55,19 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override
     public String getUsername() {
-        return this.email; // Nosso "username" é o e-mail
+        return this.email;
     }
 
-    // --- Métodos de controle de conta (deixamos true por enquanto) ---
+    // --- Controles de Conta (Padrão: tudo true) ---
     @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
+    public boolean isAccountNonExpired() { return true; }
 
     @Override
-    public boolean isAccountNonLocked() {
-        return true;
-    }
+    public boolean isAccountNonLocked() { return true; }
 
     @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
+    public boolean isCredentialsNonExpired() { return true; }
 
     @Override
-    public boolean isEnabled() {
-        return true;
-    }
+    public boolean isEnabled() { return true; }
 }

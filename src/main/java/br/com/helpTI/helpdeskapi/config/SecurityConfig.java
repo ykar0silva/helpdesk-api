@@ -57,6 +57,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/clientes").permitAll() // auto-cadastro de cliente
                 .requestMatchers(HttpMethod.POST, "/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/files/**").permitAll() // Imagens
+                .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+                .requestMatchers("/error").permitAll()
 
                 // 2. Rotas Específicas (Ordem importa: Do mais específico para o genérico)
                 

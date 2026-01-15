@@ -1,11 +1,14 @@
 package br.com.helpTI.helpdeskapi.security;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -50,7 +53,7 @@ public class SecurityFilter extends OncePerRequestFilter {
         if(token != null) {
             String email = this.validateToken(token);
             
-            // Carrega o usuário usando o método corrigido (IgnoreCase)
+            // Carrega o usuário
             UserDetails userDetails = loadUserByEmail(email);
 
             if (userDetails != null) {
@@ -83,29 +86,55 @@ public class SecurityFilter extends OncePerRequestFilter {
     }
 
     private UserDetails loadUserByEmail(String email) {
-        // 1. Cliente: Busca ignorando maiúsculas/minúsculas
+        // =====================================================================
+        // 1. CLIENTE
+        // =====================================================================
         var clienteOpt = clienteRepo.findByEmailIgnoreCase(email);
         if(clienteOpt.isPresent()) {
             var cliente = clienteOpt.get();
-            var roles = Set.of("ROLE_CLIENTE", "ROLE_" + cliente.getPerfil().toUpperCase());
-            return new UserDetailsImpl(cliente.getId(), cliente.getEmail(), cliente.getSenha(), roles);
+            
+            // CORREÇÃO: Usar HashSet para evitar erro de duplicata e SimpleGrantedAuthority para compatibilidade
+            Set<GrantedAuthority> authorities = new HashSet<>();
+            
+            // Regra base
+            authorities.add(new SimpleGrantedAuthority("ROLE_CLIENTE"));
+            
+            // Regra do perfil (Gestor, etc)
+            if (cliente.getPerfil() != null) {
+                String perfilUpper = cliente.getPerfil().toUpperCase();
+                String role = perfilUpper.startsWith("ROLE_") ? perfilUpper : "ROLE_" + perfilUpper;
+                authorities.add(new SimpleGrantedAuthority(role));
+            }
+
+            return new UserDetailsImpl(cliente.getId(), cliente.getEmail(), cliente.getSenha(), authorities);
         }
 
-        // 2. Técnico: Busca ignorando maiúsculas/minúsculas
+        // =====================================================================
+        // 2. TÉCNICO
+        // =====================================================================
         var tecnicoOpt = tecnicoRepo.findByEmailIgnoreCase(email);
         if(tecnicoOpt.isPresent()) {
             var tecnico = tecnicoOpt.get();
-            var roles = Set.of("ROLE_TECNICO");
-            return new UserDetailsImpl(tecnico.getId(), tecnico.getEmail(), tecnico.getSenha(), roles);
+            
+            Set<GrantedAuthority> authorities = new HashSet<>();
+            authorities.add(new SimpleGrantedAuthority("ROLE_TECNICO"));
+            
+            return new UserDetailsImpl(tecnico.getId(), tecnico.getEmail(), tecnico.getSenha(), authorities);
         }
 
-        // 3. Empresa: Mantido o padrão antigo (Responsavel)
+        // =====================================================================
+        // 3. EMPRESA
+        // =====================================================================
         var empresaOpt = empresaRepo.findByEmailResponsavel(email);
         if(empresaOpt.isPresent()) {
             var empresa = empresaOpt.get();
-            var roles = Set.of("ROLE_ADMIN");
-            return new UserDetailsImpl(empresa.getId(), empresa.getEmailResponsavel(), empresa.getSenha(), roles);
+            
+            Set<GrantedAuthority> authorities = new HashSet<>();
+            authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+            
+            return new UserDetailsImpl(empresa.getId(), empresa.getEmailResponsavel(), empresa.getSenha(), authorities);
         }
+        
         return null;
     }
 }
