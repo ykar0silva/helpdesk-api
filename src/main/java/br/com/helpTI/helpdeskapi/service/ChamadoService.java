@@ -283,44 +283,70 @@ public class ChamadoService {
     // --- PAGAMENTOS / NOTAS ---
     @Transactional
     public void registrarPagamentoPorTecnico(Long tecnicoId, BigDecimal valorPago) {
+        // 1. Validação básica do input
         if (valorPago == null || valorPago.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("O valor do pagamento deve ser maior que zero.");
         }
-        BigDecimal saldoAPagar = valorPago;
+
+        // 2. Busca os chamados pendentes
         List<Chamado> pendentes = findAllPendentesByTecnico(tecnicoId);
+
+        // 3. TRAVA: Se não tem chamados na lista
+        if (pendentes.isEmpty()) {
+            throw new IllegalArgumentException("Este técnico não possui chamados pendentes para pagamento.");
+        }
+
+        // 4. Calcula o Total Real da Dívida
+        BigDecimal totalDevido = BigDecimal.ZERO;
+        for (Chamado c : pendentes) {
+            if (c.getValorPendente() != null) {
+                totalDevido = totalDevido.add(c.getValorPendente());
+            }
+        }
+
+        // 5. TRAVA: Se a dívida for Zero
+        if (totalDevido.compareTo(BigDecimal.ZERO) == 0) {
+            throw new IllegalArgumentException("O saldo devedor é R$ 0,00. Nada a pagar.");
+        }
+
+        // 6. TRAVA: Se tentar pagar mais do que deve
+        if (valorPago.compareTo(totalDevido) > 0) {
+            throw new IllegalArgumentException("Erro: Você tentou pagar R$ " + valorPago + 
+                ", mas o técnico só tem R$ " + totalDevido + " a receber.");
+        }
+
+        // 7. Processa o pagamento (Distribui o valor)
+        BigDecimal saldoAPagar = valorPago;
+        
         for (Chamado chamado : pendentes) {
             if (saldoAPagar.compareTo(BigDecimal.ZERO) <= 0) break;
+
             BigDecimal valorPendenteChamado = chamado.getValorPendente();
+            // Pega o menor valor (ou o que falta do chamado, ou o que sobrou do dinheiro)
             BigDecimal valorAplicado = saldoAPagar.min(valorPendenteChamado);
-            chamado.setValorPago((chamado.getValorPago() == null ? BigDecimal.ZERO : chamado.getValorPago()).add(valorAplicado));
-            chamado.setValorPendente((chamado.getValorPendente() == null ? chamado.getValorDoChamado() : chamado.getValorPendente()).subtract(valorAplicado));
+
+            // Atualiza valores
+            BigDecimal pagoAnterior = (chamado.getValorPago() == null ? BigDecimal.ZERO : chamado.getValorPago());
+            chamado.setValorPago(pagoAnterior.add(valorAplicado));
+            
+            BigDecimal pendenteAnterior = (chamado.getValorPendente() == null ? chamado.getValorDoChamado() : chamado.getValorPendente());
+            BigDecimal novoPendente = pendenteAnterior.subtract(valorAplicado);
+            chamado.setValorPendente(novoPendente);
+
+            // Atualiza Status (String)
+            if (novoPendente.compareTo(BigDecimal.ZERO) == 0) {
+                chamado.setStatusPagamento("PAGO");
+            } else {
+                chamado.setStatusPagamento("PARCIAL");
+            }
+
+            // Subtrai do saldo da mão
             saldoAPagar = saldoAPagar.subtract(valorAplicado);
+            
             repository.save(chamado);
         }
     }
-    
-    @Transactional
-    public void registrarPagamento(Long empresaId, BigDecimal valorPago) {
-        Empresa empresa = empresaRepository.findById(empresaId).orElse(null);
-        if (empresa == null) return;
-        List<Chamado> pendentes = repository.findAllByEmpresaAndValorPendenteGreaterThanOrderByDataFechamentoAsc(empresa, BigDecimal.ZERO);
-        BigDecimal valorDisponivel = valorPago;
-        for (Chamado chamado : pendentes) {
-            if (valorDisponivel.compareTo(BigDecimal.ZERO) <= 0) break;
-            BigDecimal valorDevido = chamado.getValorPendente();
-            if (valorDisponivel.compareTo(valorDevido) >= 0) {
-                valorDisponivel = valorDisponivel.subtract(valorDevido);
-                chamado.setValorPendente(BigDecimal.ZERO);
-                chamado.setStatusPagamento("PAGO");
-            } else {
-                BigDecimal valorRestante = valorDevido.subtract(valorDisponivel);
-                chamado.setValorPendente(valorRestante);
-                chamado.setStatusPagamento("PARCIAL");
-                valorDisponivel = BigDecimal.ZERO; 
-            }
-            repository.save(chamado); 
-        }
-    }
+
     
     @Transactional
     public Chamado adicionarNota(Long chamadoId, String texto, String autorNome, String autorTipo) {

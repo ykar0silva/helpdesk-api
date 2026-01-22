@@ -1,6 +1,8 @@
 package br.com.helpTI.helpdeskapi.controller;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -9,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,20 +22,18 @@ import br.com.helpTI.helpdeskapi.domain.Tecnico;
 import br.com.helpTI.helpdeskapi.dto.CadastroDTO;
 import br.com.helpTI.helpdeskapi.dto.EmailDTO;
 import br.com.helpTI.helpdeskapi.dto.LoginRequestDTO;
-import br.com.helpTI.helpdeskapi.dto.TokenResponseDTO;
+import br.com.helpTI.helpdeskapi.exception.ObjectNotFoundException;
 import br.com.helpTI.helpdeskapi.repository.ClienteRepository;
 import br.com.helpTI.helpdeskapi.repository.TecnicoRepository;
 import br.com.helpTI.helpdeskapi.security.JwtTokenService;
 import br.com.helpTI.helpdeskapi.security.UserDetailsImpl;
 import br.com.helpTI.helpdeskapi.service.AuthService;
 import br.com.helpTI.helpdeskapi.service.EmailService;
-import br.com.helpTI.helpdeskapi.exception.ObjectNotFoundException;
 
 @RestController
 @RequestMapping("/api") 
 public class AuthController {
 
-    // --- DEPENDÊNCIAS ---
     @Autowired
     private AuthenticationManager authenticationManager;
 
@@ -49,32 +50,80 @@ public class AuthController {
     private EmailService emailService;
 
     @Autowired
-    private AuthService authService; // Movi para cá para ficar organizado
+    private AuthService authService; 
 
     @Autowired
-    private org.springframework.security.crypto.password.PasswordEncoder encoder;
+    private PasswordEncoder encoder;
 
     // ==========================================
-    // MÉTODO 1: LOGIN (URL: /api/login)
+    // MÉTODO 1: LOGIN (ATUALIZADO PARA RETORNAR PERFIL E EMPRESA)
     // ==========================================
     @PostMapping("/login") 
     public ResponseEntity<?> login(@RequestBody LoginRequestDTO loginDto) {
         
+        // 1. Autentica
         var usernamePassword = new UsernamePasswordAuthenticationToken(
             loginDto.getEmail(), 
             loginDto.getSenha()
         );
 
         Authentication auth = authenticationManager.authenticate(usernamePassword);
-
         UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+        
+        // 2. Gera Token
         String token = jwtTokenService.generateToken(userDetails);
 
-        return ResponseEntity.ok(new TokenResponseDTO(userDetails.getUsername(), token));
+        // 3. Monta a Resposta Completa (Map)
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", token);
+        response.put("email", userDetails.getUsername());
+        
+        // Pega o perfil da autenticação (Ex: ROLE_ADMIN -> ADMIN)
+        String perfil = userDetails.getAuthorities().stream()
+                .findFirst()
+                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .orElse("CLIENTE");
+        
+        response.put("perfil", perfil);
+
+        // 4. Busca dados extras (Nome e Empresa) no banco
+        String email = userDetails.getUsername();
+        
+        // Verifica se é Técnico
+        Optional<Tecnico> tec = tecnicoRepository.findByEmailIgnoreCase(email);
+        if (tec.isPresent()) {
+            Tecnico t = tec.get();
+            response.put("nome", t.getNome());
+            response.put("id", t.getId());
+            
+            if (t.getEmpresa() != null) {
+                response.put("empresaNome", t.getEmpresa().getNomeFantasia());
+            } else {
+                response.put("empresaNome", "HelpTI Matriz");
+            }
+        } 
+        // Verifica se é Cliente
+        else {
+            Optional<Cliente> cli = clienteRepository.findByEmailIgnoreCase(email);
+            if (cli.isPresent()) {
+                Cliente c = cli.get();
+                response.put("nome", c.getNome());
+                response.put("id", c.getId());
+                
+                if (c.getEmpresa() != null) {
+                    response.put("empresaNome", c.getEmpresa().getNomeFantasia());
+                } else {
+                    // Fallback para string se não tiver objeto empresa
+                    response.put("empresaNome", c.getEmpresaDoCliente() != null ? c.getEmpresaDoCliente() : "Minha Empresa");
+                }
+            }
+        }
+
+        return ResponseEntity.ok(response);
     }
 
     // ==========================================
-    // MÉTODO 2: ESQUECI A SENHA (URL: /api/forgot-password)
+    // MÉTODO 2: ESQUECI A SENHA
     // ==========================================
     @PostMapping("/forgot-password")
     public ResponseEntity<Void> forgotPassword(@RequestBody EmailDTO emailDTO) {
@@ -84,7 +133,6 @@ public class AuthController {
         
         String link = "http://localhost:5173/recuperar-senha/" + token;
 
-        // 1. TÉCNICO
         Optional<Tecnico> tec = tecnicoRepository.findByEmailIgnoreCase(email);
         if (tec.isPresent()) {
             Tecnico tecnico = tec.get();
@@ -96,7 +144,6 @@ public class AuthController {
             return ResponseEntity.noContent().build();
         }
 
-        // 2. CLIENTE
         Optional<Cliente> cli = clienteRepository.findByEmailIgnoreCase(email);
         if (cli.isPresent()) {
             Cliente cliente = cli.get();
@@ -123,7 +170,7 @@ public class AuthController {
     }
     
     // ==========================================
-    // MÉTODO 3: REDEFINIR A SENHA (URL: /api/reset-password)
+    // MÉTODO 3: REDEFINIR A SENHA
     // ==========================================
     @PostMapping("/reset-password")
     public ResponseEntity<Void> resetPassword(@RequestBody br.com.helpTI.helpdeskapi.dto.ResetPasswordDTO dto) {
@@ -166,7 +213,7 @@ public class AuthController {
     }
     
     // ==========================================
-    // MÉTODO 4: REGISTRO (URL: /api/auth/register)
+    // MÉTODO 4: REGISTRO
     // ==========================================
     @PostMapping("/auth/register")
     public ResponseEntity<Void> register(@RequestBody CadastroDTO dto) {

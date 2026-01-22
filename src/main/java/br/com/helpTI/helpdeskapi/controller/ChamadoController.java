@@ -36,7 +36,6 @@ public class ChamadoController {
         List<Chamado> list = service.findAll();
         return ResponseEntity.ok().body(list);
     }
-    // ----------------------------------------------------------
 
     // GET /api/chamados/1
     @GetMapping(value = "/{id}")
@@ -68,7 +67,7 @@ public class ChamadoController {
         return ResponseEntity.ok().body(list);
     }
 
-    // 2. POST: Registra o pagamento em lote para um técnico
+
     @PostMapping(value = "/tecnico/{tecnicoId}/pagar")
     public ResponseEntity<Void> registrarPagamentoPorTecnico(
             @PathVariable Long tecnicoId, 
@@ -82,13 +81,6 @@ public class ChamadoController {
     @GetMapping(value = "/empresa/{empresaId}")
     public ResponseEntity<List<Chamado>> findAllByEmpresa(@PathVariable Long empresaId) {
         List<Chamado> list = service.findAllByEmpresa(empresaId);
-        return ResponseEntity.ok().body(list);
-    }
-
-    // GET /api/chamados/empresa/1/pendentes (Lista APENAS o que a empresa deve)
-    @GetMapping(value = "/empresa/{empresaId}/pendentes")
-    public ResponseEntity<List<Chamado>> findAllPendentesByEmpresa(@PathVariable Long empresaId) {
-        List<Chamado> list = service.findAllPendentesByEmpresa(empresaId);
         return ResponseEntity.ok().body(list);
     }
 
@@ -141,30 +133,10 @@ public class ChamadoController {
         Chamado obj = service.fecharChamado(id, dto);
         return ResponseEntity.ok().body(obj);
     }
-
     
-    // --- ENDPOINT FINANCEIRO (DO ADMIN) ---
-
-    // POST /api/chamados/empresa/1/pagar (Admin registra um pagamento)
-    @PostMapping(value = "/empresa/{empresaId}/pagar")
-    public ResponseEntity<Void> registrarPagamento(@PathVariable Long empresaId,
-            @RequestBody Map<String, BigDecimal> payload) {
-        BigDecimal valorPago = payload.get("valorPago");
-        service.registrarPagamento(empresaId, valorPago);
-        return ResponseEntity.ok().build(); 
-    }
-    
-    // GET /api/chamados/empresa/{id}/dashboard (Visão Admin com regra de 24h)
     @GetMapping(value = "/empresa/{empresaId}/dashboard")
     public ResponseEntity<List<Chamado>> getDashboardEmpresa(@PathVariable Long empresaId) {
-        List<Chamado> list = service.getDashboardEmpresa(empresaId);
-        return ResponseEntity.ok().body(list);
-    }
-
-    // GET /api/chamados/tecnico/{tecnicoId}/dashboard (Visão Técnico com regra de 24h)
-    @GetMapping(value = "/tecnico/{tecnicoId}/dashboard")
-    public ResponseEntity<List<Chamado>> getDashboardTecnico(@PathVariable Long tecnicoId) {
-        List<Chamado> list = service.getDashboardTecnico(tecnicoId);
+        List<Chamado> list = service.findAllByEmpresa(empresaId);
         return ResponseEntity.ok().body(list);
     }
 }
