@@ -15,12 +15,13 @@ import org.springframework.stereotype.Service;
 import br.com.helpTI.helpdeskapi.domain.Cliente;
 import br.com.helpTI.helpdeskapi.domain.Empresa;
 import br.com.helpTI.helpdeskapi.domain.Tecnico;
+import br.com.helpTI.helpdeskapi.domain.enums.TipoEmpresa; 
 import br.com.helpTI.helpdeskapi.repository.ClienteRepository;
 import br.com.helpTI.helpdeskapi.repository.EmpresaRepository;
 import br.com.helpTI.helpdeskapi.repository.TecnicoRepository;
 
 @Service
-public class UserDetailsServiceIm implements UserDetailsService {
+public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Autowired
     private ClienteRepository clienteRepo;
@@ -35,58 +36,61 @@ public class UserDetailsServiceIm implements UserDetailsService {
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         
         // =====================================================================
-        // 1. CLIENTE
+        // 1. LOGIN INSTITUCIONAL (EMPRESAS: MATRIZ OU PROVEDOR)
         // =====================================================================
-        Optional<Cliente> clienteOpt = clienteRepo.findByEmailIgnoreCase(email);
-        if(clienteOpt.isPresent()) {
-            Cliente cliente = clienteOpt.get();
-            
-            // Correção do erro 500: Usamos HashSet para evitar duplicação
-            Set<GrantedAuthority> authorities = new HashSet<>();
-            
-            // Adiciona papel padrão
-            authorities.add(new SimpleGrantedAuthority("ROLE_CLIENTE"));
-            
-            // Adiciona perfil dinâmico (ex: GESTOR) se existir
-            if (cliente.getPerfil() != null) {
-                String perfil = cliente.getPerfil().toUpperCase();
-                // Garante o prefixo ROLE_
-                String role = perfil.startsWith("ROLE_") ? perfil : "ROLE_" + perfil;
-                authorities.add(new SimpleGrantedAuthority(role));
-            }
-            
-            return new UserDetailsImpl(cliente.getId(), cliente.getEmail(), cliente.getSenha(), authorities);
-        }
-        
-        // =====================================================================
-        // 2. TÉCNICO
-        // =====================================================================
-        Optional<Tecnico> tecnicoOpt = tecnicoRepo.findByEmailIgnoreCase(email);
-        if(tecnicoOpt.isPresent()) {
-            Tecnico tecnico = tecnicoOpt.get();
-            Set<GrantedAuthority> authorities = new HashSet<>();
-            
-            authorities.add(new SimpleGrantedAuthority("ROLE_TECNICO"));
-            
-            // Se técnico tiver perfis extras, adicione aqui...
-            
-            return new UserDetailsImpl(tecnico.getId(), tecnico.getEmail(), tecnico.getSenha(), authorities);
-        }
-
-        // =====================================================================
-        // 3. EMPRESA (DONO/MATRIZ/PRESTADORA)
-        // =====================================================================
+        // Quem loga aqui é a "CNPJ" (admin@helpti.com ou provedor@tech.com)
         Optional<Empresa> empresaOpt = empresaRepo.findByEmailResponsavel(email);
         if(empresaOpt.isPresent()) {
             Empresa empresa = empresaOpt.get();
             Set<GrantedAuthority> authorities = new HashSet<>();
             
-            // Define como ADMIN ou PRESTADORA dependendo da lógica, aqui mantive ADMIN
-            authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+            if (empresa.getTipoEmpresa() == TipoEmpresa.MATRIZ) {
+                authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+            } 
+            else if (empresa.getTipoEmpresa() == TipoEmpresa.PRESTADORA) {
+                // Aqui entra o provedor@tech.com
+                authorities.add(new SimpleGrantedAuthority("ROLE_PRESTADORA"));
+            } 
+            else {
+                // Caso raro, mas seguro tratar como Gestor
+                authorities.add(new SimpleGrantedAuthority("ROLE_GESTOR"));
+            }
             
             return new UserDetailsImpl(empresa.getId(), empresa.getEmailResponsavel(), empresa.getSenha(), authorities);
         }
 
-        throw new UsernameNotFoundException("Usuário não encontrado com o e-mail: " + email);
+        // =====================================================================
+        // 2. LOGIN DE TÉCNICOS
+        // =====================================================================
+        Optional<Tecnico> tecnicoOpt = tecnicoRepo.findByEmailIgnoreCase(email);
+        if(tecnicoOpt.isPresent()) {
+            Tecnico tecnico = tecnicoOpt.get();
+            Set<GrantedAuthority> authorities = new HashSet<>();
+            authorities.add(new SimpleGrantedAuthority("ROLE_TECNICO"));
+            return new UserDetailsImpl(tecnico.getId(), tecnico.getEmail(), tecnico.getSenha(), authorities);
+        }
+
+        // =====================================================================
+        // 3. LOGIN PESSOAL (CLIENTES / GESTORES / FUNCIONÁRIOS)
+        // =====================================================================
+        // Quem loga aqui é o CPF (gestor@tech.com ou dono@padaria.com)
+        Optional<Cliente> clienteOpt = clienteRepo.findByEmailIgnoreCase(email);
+        if(clienteOpt.isPresent()) {
+            Cliente cliente = clienteOpt.get();
+            Set<GrantedAuthority> authorities = new HashSet<>();
+            
+            // Lógica Simplificada: O Perfil define a Role.
+            // Não importa se a empresa dele é Provedora ou Cliente Final.
+            
+            if ("GESTOR".equalsIgnoreCase(cliente.getPerfil())) {
+                authorities.add(new SimpleGrantedAuthority("ROLE_GESTOR"));
+            } else {
+                authorities.add(new SimpleGrantedAuthority("ROLE_CLIENTE"));
+            }
+            
+            return new UserDetailsImpl(cliente.getId(), cliente.getEmail(), cliente.getSenha(), authorities);
+        }
+
+        throw new UsernameNotFoundException("Usuário não encontrado: " + email);
     }
 }

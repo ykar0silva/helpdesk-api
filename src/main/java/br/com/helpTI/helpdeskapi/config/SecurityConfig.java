@@ -20,7 +20,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import br.com.helpTI.helpdeskapi.security.SecurityFilter;
-import br.com.helpTI.helpdeskapi.security.UserDetailsServiceIm;
+import br.com.helpTI.helpdeskapi.security.UserDetailsServiceImpl;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
@@ -29,7 +29,7 @@ import static org.springframework.security.config.Customizer.withDefaults;
 public class SecurityConfig {
 
     @Autowired
-    private UserDetailsServiceIm userDetailsService;
+    private UserDetailsServiceImpl userDetailsService;
 
     @Autowired
     private SecurityFilter securityFilter;
