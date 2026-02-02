@@ -15,32 +15,39 @@ public class UserDetailsImpl implements UserDetails {
     private Long id;
     private String email;
     private String senha;
+    private Long empresaId; // Novo campo para armazenar o ID da empresa
     
     // Mudamos para Collection para ser mais genérico (aceita Set e List)
     private Collection<? extends GrantedAuthority> authorities; 
 
     // --- CONSTRUTOR 1: O NOVO (Que resolve seu erro) ---
     // Aceita já a lista de permissões prontas que vêm do UserDetailsServiceIm
-    public UserDetailsImpl(Long id, String email, String senha, Collection<? extends GrantedAuthority> authorities) {
+    public UserDetailsImpl(Long id, String email, String senha, Collection<? extends GrantedAuthority> authorities, Long empresaId) {
         this.id = id;
         this.email = email;
         this.senha = senha;
         this.authorities = authorities;
+        this.empresaId = empresaId;
     }
 
     // --- CONSTRUTOR 2: O ANTIGO (Para compatibilidade) ---
     // Mantemos este caso alguma outra parte do código ainda envie Strings
-    public UserDetailsImpl(Long id, String email, String senha, Set<String> roles) {
+    public UserDetailsImpl(Long id, String email, String senha, Set<String> roles, Long empresaId) {
         this.id = id;
         this.email = email;
         this.senha = senha;
         this.authorities = roles.stream()
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toSet());
+        this.empresaId = empresaId;
     }
 
     public Long getId() {
         return this.id;
+    }
+
+    public Long getEmpresaId() {
+        return this.empresaId;
     }
 
     @Override

@@ -89,6 +89,11 @@ public class AuthController {
         // 4. Busca dados extras (Nome e Empresa) no banco
         String email = userDetails.getUsername();
         
+        // Adiciona o empresaId do token (já está no userDetails)
+        if (userDetails.getEmpresaId() != null) {
+            response.put("empresaId", userDetails.getEmpresaId());
+        }
+        
         // Verifica se é Técnico
         Optional<Tecnico> tec = tecnicoRepository.findByEmailIgnoreCase(email);
         if (tec.isPresent()) {
@@ -98,6 +103,7 @@ public class AuthController {
             
             if (t.getEmpresa() != null) {
                 response.put("empresaNome", t.getEmpresa().getNomeFantasia());
+                response.put("empresaId", t.getEmpresa().getId()); // Adiciona empresaId explicitamente
             } else {
                 response.put("empresaNome", "HelpTI Matriz");
             }
@@ -112,6 +118,7 @@ public class AuthController {
                 
                 if (c.getEmpresa() != null) {
                     response.put("empresaNome", c.getEmpresa().getNomeFantasia());
+                    response.put("empresaId", c.getEmpresa().getId()); // Adiciona empresaId explicitamente
                 } else {
                     // Fallback para string se não tiver objeto empresa
                     response.put("empresaNome", c.getEmpresaDoCliente() != null ? c.getEmpresaDoCliente() : "Minha Empresa");

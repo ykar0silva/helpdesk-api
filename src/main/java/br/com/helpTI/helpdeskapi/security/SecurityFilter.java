@@ -106,7 +106,8 @@ public class SecurityFilter extends OncePerRequestFilter {
                 authorities.add(new SimpleGrantedAuthority(role));
             }
 
-            return new UserDetailsImpl(cliente.getId(), cliente.getEmail(), cliente.getSenha(), authorities);
+            Long empresaId = cliente.getEmpresa() != null ? cliente.getEmpresa().getId() : null;
+            return new UserDetailsImpl(cliente.getId(), cliente.getEmail(), cliente.getSenha(), authorities, empresaId);
         }
 
         // =====================================================================
@@ -119,7 +120,8 @@ public class SecurityFilter extends OncePerRequestFilter {
             Set<GrantedAuthority> authorities = new HashSet<>();
             authorities.add(new SimpleGrantedAuthority("ROLE_TECNICO"));
             
-            return new UserDetailsImpl(tecnico.getId(), tecnico.getEmail(), tecnico.getSenha(), authorities);
+            Long empresaId = tecnico.getEmpresa() != null ? tecnico.getEmpresa().getId() : null;
+            return new UserDetailsImpl(tecnico.getId(), tecnico.getEmail(), tecnico.getSenha(), authorities, empresaId);
         }
 
         // =====================================================================
@@ -132,7 +134,7 @@ public class SecurityFilter extends OncePerRequestFilter {
             Set<GrantedAuthority> authorities = new HashSet<>();
             authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
             
-            return new UserDetailsImpl(empresa.getId(), empresa.getEmailResponsavel(), empresa.getSenha(), authorities);
+            return new UserDetailsImpl(empresa.getId(), empresa.getEmailResponsavel(), empresa.getSenha(), authorities, empresa.getId());
         }
         
         return null;

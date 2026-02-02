@@ -56,7 +56,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 authorities.add(new SimpleGrantedAuthority("ROLE_GESTOR"));
             }
             
-            return new UserDetailsImpl(empresa.getId(), empresa.getEmailResponsavel(), empresa.getSenha(), authorities);
+            return new UserDetailsImpl(empresa.getId(), empresa.getEmailResponsavel(), empresa.getSenha(), authorities, empresa.getId());
         }
 
         // =====================================================================
@@ -67,7 +67,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             Tecnico tecnico = tecnicoOpt.get();
             Set<GrantedAuthority> authorities = new HashSet<>();
             authorities.add(new SimpleGrantedAuthority("ROLE_TECNICO"));
-            return new UserDetailsImpl(tecnico.getId(), tecnico.getEmail(), tecnico.getSenha(), authorities);
+            Long empresaId = tecnico.getEmpresa() != null ? tecnico.getEmpresa().getId() : null;
+            return new UserDetailsImpl(tecnico.getId(), tecnico.getEmail(), tecnico.getSenha(), authorities, empresaId);
         }
 
         // =====================================================================
@@ -88,7 +89,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 authorities.add(new SimpleGrantedAuthority("ROLE_CLIENTE"));
             }
             
-            return new UserDetailsImpl(cliente.getId(), cliente.getEmail(), cliente.getSenha(), authorities);
+            Long empresaId = cliente.getEmpresa() != null ? cliente.getEmpresa().getId() : null;
+            return new UserDetailsImpl(cliente.getId(), cliente.getEmail(), cliente.getSenha(), authorities, empresaId);
         }
 
         throw new UsernameNotFoundException("Usuário não encontrado: " + email);
